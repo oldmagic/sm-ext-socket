@@ -424,7 +424,7 @@ bool Socket<SocketType>::Send(const std::string& data, bool async) {
 		if (!socket && !tcpAcceptor) throw std::logic_error("can't send without connection");
 
 		if (async) {
-			char* buf = new char[data.length()];
+			buf = new char[data.length()];
 			memcpy(buf, data.data(), data.length());
 
 			sendQueueLength++;
@@ -442,7 +442,7 @@ bool Socket<SocketType>::Send(const std::string& data, bool async) {
 											   boost::asio::placeholders::error,
 											   handlerLock));
 			} else {
-				throw new std::logic_error("Operation cancelled.");
+				throw std::logic_error("Operation cancelled.");
 			}
 		} else {
 			boost::mutex::scoped_lock l(socketMutex);

@@ -235,7 +235,6 @@ cell_t SocketSend(IPluginContext *pContext, const cell_t *params) {
 		case SM_SocketType_Udp: {
 			Socket<udp>* socket = (Socket<udp>*) sw->socket;
 			if (!socket->IsOpen()) return pContext->ThrowNativeError("Can't send, socket is not connected");
-			socket->incomingCallback = pContext->GetFunctionById(params[2]);
 			return socket->Send(data);
 		}
 		default:
@@ -267,7 +266,6 @@ cell_t SocketSendTo(IPluginContext *pContext, const cell_t *params) {
 		case SM_SocketType_Udp: {
 			Socket<udp>* socket = (Socket<udp>*) sw->socket;
 			//if (!socket->IsOpen()) return pContext->ThrowNativeError("Can't send, socket is not connected");
-			socket->incomingCallback = pContext->GetFunctionById(params[2]);
 			return socket->SendTo(data, hostname, params[5]);
 		}
 		default:
