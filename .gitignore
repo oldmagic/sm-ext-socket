@@ -46,3 +46,9 @@ _deps/
 *.ext.dll
 *.ext.dylib
 
+# Documentation
+docs/
+html/
+latex/
+!Doxyfile
+
