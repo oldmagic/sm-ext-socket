@@ -40,9 +40,9 @@
 #include "sdk/smsdk_config.h"
 #include <IExtensionSys.h>
 #include <IHandleSys.h>
-#include <sp_vm_api.h>
 #include <sm_platform.h>
 #include <ISourceMod.h>
+#include <IPluginSys.h>
 #if defined SMEXT_ENABLE_FORWARDSYS
 #include <IForwardSys.h>
 #endif //SMEXT_ENABLE_FORWARDSYS
@@ -72,9 +72,6 @@
 #endif
 #if defined SMEXT_ENABLE_LIBSYS
 #include <ILibrarySys.h>
-#endif
-#if defined SMEXT_ENABLE_PLUGINSYS
-#include <IPluginSys.h>
 #endif
 
 #if defined SMEXT_CONF_METAMOD
