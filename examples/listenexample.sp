@@ -3,7 +3,7 @@
 #include <sourcemod>
 #include <socket>
 
-public Plugin:myinfo = {
+public Plugin myinfo = {
 	name = "listen socket example",
 	author = "Player",
 	description = "This example provides a simple echo server",
@@ -11,20 +11,20 @@ public Plugin:myinfo = {
 	url = "http://www.player.to/"
 };
  
-public OnPluginStart() {
+public void OnPluginStart() {
 	// enable socket debugging (only for testing purposes!)
 	SocketSetOption(INVALID_HANDLE, DebugMode, 1);
 
 
 	// create a new tcp socket
-	new Handle:socket = SocketCreate(SOCKET_TCP, OnSocketError);
+	Handle socket = SocketCreate(SOCKET_TCP, OnSocketError);
 	// bind the socket to all interfaces, port 50000
 	SocketBind(socket, "0.0.0.0", 50000);
 	// let the socket listen for incoming connections
 	SocketListen(socket, OnSocketIncoming);
 }
 
-public OnSocketIncoming(Handle:socket, Handle:newSocket, String:remoteIP[], remotePort, any:arg) {
+public void OnSocketIncoming(Handle socket, Handle newSocket, const char[] remoteIP, int remotePort, any arg) {
 	PrintToServer("%s:%d connected", remoteIP, remotePort);
 
 	// setup callbacks required to 'enable' newSocket
@@ -36,27 +36,27 @@ public OnSocketIncoming(Handle:socket, Handle:newSocket, String:remoteIP[], remo
 	SocketSend(newSocket, "send quit to quit\n");
 }
 
-public OnSocketError(Handle:socket, const errorType, const errorNum, any:ary) {
+public void OnSocketError(Handle socket, const int errorType, const int errorNum, any ary) {
 	// a socket error occured
 
 	LogError("socket error %d (errno %d)", errorType, errorNum);
 	CloseHandle(socket);
 }
 
-public OnChildSocketReceive(Handle:socket, String:receiveData[], const dataSize, any:hFile) {
+public void OnChildSocketReceive(Handle socket, const char[] receiveData, const int dataSize, any hFile) {
 	// send (echo) the received data back
 	SocketSend(socket, receiveData);
 	// close the connection/socket/handle if it matches quit
 	if (strncmp(receiveData, "quit", 4) == 0) CloseHandle(socket);
 }
 
-public OnChildSocketDisconnected(Handle:socket, any:hFile) {
+public void OnChildSocketDisconnected(Handle socket, any hFile) {
 	// remote side disconnected
 
 	CloseHandle(socket);
 }
 
-public OnChildSocketError(Handle:socket, const errorType, const errorNum, any:ary) {
+public void OnChildSocketError(Handle socket, const int errorType, const int errorNum, any ary) {
 	// a socket error occured
 
 	LogError("child socket error %d (errno %d)", errorType, errorNum);

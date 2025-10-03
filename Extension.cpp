@@ -235,7 +235,6 @@ cell_t SocketSend(IPluginContext *pContext, const cell_t *params) {
 		case SM_SocketType_Udp: {
 			Socket<udp>* socket = (Socket<udp>*) sw->socket;
 			if (!socket->IsOpen()) return pContext->ThrowNativeError("Can't send, socket is not connected");
-			socket->incomingCallback = pContext->GetFunctionById(params[2]);
 			return socket->Send(data);
 		}
 		default:
@@ -267,7 +266,6 @@ cell_t SocketSendTo(IPluginContext *pContext, const cell_t *params) {
 		case SM_SocketType_Udp: {
 			Socket<udp>* socket = (Socket<udp>*) sw->socket;
 			//if (!socket->IsOpen()) return pContext->ThrowNativeError("Can't send, socket is not connected");
-			socket->incomingCallback = pContext->GetFunctionById(params[2]);
 			return socket->SendTo(data, hostname, params[5]);
 		}
 		default:
@@ -297,28 +295,6 @@ cell_t SocketSetOption(IPluginContext *pContext, const cell_t *params) {
 	} else {
 		return false;
 	}
-
-#if 0
-	switch (params[2]) {
-		case ConcatenateCallbacks:
-			socket->setOption(ConcatenateCallbacks, value);
-			return 1;
-		case ForceFrameLock:
-			callbacks->setOption(ForceFrameLock, value);
-			return 1;
-		case CallbacksPerFrame:
-			if (value > 0) {
-				callbacks->setOption(CallbacksPerFrame, value);
-				return 1;
-			} else {
-				return 0;
-			}
-		case DebugMode:
-			sockets._debug = value != 0;
-			return 1;
-...
-	}
-#endif
 }
 
 
@@ -333,6 +309,7 @@ cell_t SocketSetReceiveCallback(IPluginContext *pContext, const cell_t *params) 
 			break;
 		case SM_SocketType_Udp:
 			((Socket<udp>*) sw->socket)->receiveCallback = pContext->GetFunctionById((params[2]));
+			break;
 		default:
 			return false;
 	}
@@ -354,7 +331,8 @@ cell_t SocketSetSendqueueEmptyCallback(IPluginContext *pContext, const cell_t *p
 			break;
 		case SM_SocketType_Udp:
 			((Socket<udp>*) sw->socket)->sendqueueEmptyCallback = pContext->GetFunctionById((params[2]));
-			if (!((Socket<tcp>*) sw->socket)->sendQueueLength) forceSendqueueEmptyCallback = true;
+			if (!((Socket<udp>*) sw->socket)->sendQueueLength) forceSendqueueEmptyCallback = true;
+			break;
 		default:
 			return false;
 	}
@@ -377,6 +355,7 @@ cell_t SocketSetDisconnectCallback(IPluginContext *pContext, const cell_t *param
 			break;
 		case SM_SocketType_Udp:
 			((Socket<udp>*) sw->socket)->disconnectCallback = pContext->GetFunctionById((params[2]));
+			break;
 		default:
 			return false;
 	}
@@ -395,6 +374,7 @@ cell_t SocketSetErrorCallback(IPluginContext *pContext, const cell_t *params) {
 			break;
 		case SM_SocketType_Udp:
 			((Socket<udp>*) sw->socket)->errorCallback = pContext->GetFunctionById((params[2]));
+			break;
 		default:
 			return false;
 	}
@@ -414,6 +394,7 @@ cell_t SocketSetArg(IPluginContext *pContext, const cell_t *params) {
 			break;
 		case SM_SocketType_Udp:
 			((Socket<udp>*) sw->socket)->smCallbackArg = params[2];
+			break;
 		default:
 			return false;
 	}

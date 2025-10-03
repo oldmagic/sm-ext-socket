@@ -4,7 +4,6 @@
   #endinput
 #endif
 #define _socket_included
-#include <core>
 
 enum SocketType {
 	SOCKET_TCP = 1,
