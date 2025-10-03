@@ -8,7 +8,47 @@ a.out
 *.ox
 *.a
 *.so
+*.dll
 *~
 Release/
 Debug/
+
+# CMake
+build/
+build-*/
+cmake-build-*/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile.cmake
+*.cmake
+!CMakeLists.txt
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Testing
+tests/build/
+tests/bin/
+Testing/
+CTestTestfile.cmake
+
+# Package manager
+vcpkg_installed/
+_deps/
+
+# Binaries
+*.ext.so
+*.ext.dll
+*.ext.dylib
+
+# Documentation
+docs/
+html/
+latex/
+!Doxyfile
 
