@@ -295,28 +295,6 @@ cell_t SocketSetOption(IPluginContext *pContext, const cell_t *params) {
 	} else {
 		return false;
 	}
-
-#if 0
-	switch (params[2]) {
-		case ConcatenateCallbacks:
-			socket->setOption(ConcatenateCallbacks, value);
-			return 1;
-		case ForceFrameLock:
-			callbacks->setOption(ForceFrameLock, value);
-			return 1;
-		case CallbacksPerFrame:
-			if (value > 0) {
-				callbacks->setOption(CallbacksPerFrame, value);
-				return 1;
-			} else {
-				return 0;
-			}
-		case DebugMode:
-			sockets._debug = value != 0;
-			return 1;
-...
-	}
-#endif
 }
 
 
