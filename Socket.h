@@ -13,6 +13,15 @@
 
 class SocketHandler;
 
+/**
+ * @brief Template class for managing TCP and UDP socket operations
+ * 
+ * This class handles all socket operations including connecting, sending,
+ * receiving, and listening. It uses Boost.Asio for asynchronous operations
+ * and thread-safe callback management.
+ * 
+ * @tparam SocketType The type of socket (tcp or udp from boost::asio::ip)
+ */
 template <class SocketType>
 class Socket {
 public:
@@ -29,6 +38,7 @@ public:
 	bool SendTo(const std::string& data, const char* hostname, uint16_t port, bool async = true);
 	bool SetOption(SM_SocketOption so, int value, bool lock=true);
 
+	// SourceMod callback functions
 	IPluginFunction* connectCallback;
 	IPluginFunction* incomingCallback;
 	IPluginFunction* receiveCallback;
@@ -55,7 +65,6 @@ private:
 	void SendToPostResolveHandler(typename SocketType::resolver*, typename SocketType::resolver::iterator, char* buf, size_t bufLen, const boost::system::error_code&, boost::shared_lock<boost::shared_mutex>*);
 	void SendToPostSendHandler(typename SocketType::resolver*, typename SocketType::resolver::iterator, char* buf, size_t bufLen, size_t bytesTransferred, const boost::system::error_code&, boost::shared_lock<boost::shared_mutex>*);
 
-	//void InitializeResolver();
 	void InitializeSocket();
 
 	SM_SocketType sm_sockettype;
@@ -63,7 +72,6 @@ private:
 
 	typename SocketType::socket* socket;
 	boost::mutex socketMutex;
-	//typename SocketType::resolver* resolver;
 	typename SocketType::endpoint* localEndpoint;
 	boost::mutex* localEndpointMutex;
 	boost::asio::ip::tcp::acceptor* tcpAcceptor;
