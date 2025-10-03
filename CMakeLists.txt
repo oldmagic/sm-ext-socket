@@ -66,6 +66,8 @@ set(SOURCEMOD_INCLUDE_DIRS
     ${SOURCEMOD_DIR}/public/sourcepawn
     ${SOURCEMOD_DIR}/public/sourcepawn/include
     ${SOURCEMOD_DIR}/public/sourcepawn/vm
+    ${SOURCEMOD_DIR}/core
+    ${SOURCEMOD_DIR}/core/logic
     ${MMSOURCE_DIR}
     ${MMSOURCE_DIR}/sourcehook
     ${MMSOURCE_DIR}/sourcemm
