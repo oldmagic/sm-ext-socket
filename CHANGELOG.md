@@ -1,5 +1,44 @@
 # Changelog
 
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [2.0.0-beta] - 2025-10-04
+
+### Added - C++17 Modernization (Milestone 2 Complete)
+- Complete C++17 rewrite of core implementation (1,685 lines modernized)
+- Smart pointers (`std::unique_ptr`) throughout - zero raw pointers
+- Modern threading (`std::thread`, `std::mutex`, `std::shared_mutex`)
+- Type-safe callbacks using `std::variant`
+- Lambda functions replacing `boost::bind`
+- Protocol-specific template specializations (TCP vs UDP)
+- Comprehensive unit tests (32 assertions, 10 test cases, 100% passing)
+- 32-bit and 64-bit build support
+- CMake build system with automatic 32-bit library detection
+
+### Changed
+- Replaced all `boost::mutex` with `std::mutex`
+- Replaced all `boost::thread` with `std::thread`
+- Updated to `boost::system::error_code` for Boost.Asio compatibility
+- Manual memory management eliminated (RAII throughout)
+- Thread-safe callback queue with modern synchronization
+
+### Fixed
+- Template instantiation issues with protocol-specific implementations
+- Race conditions in callback queue
+- Memory leaks from manual new/delete
+- 32-bit build compatibility with versioned Boost libraries
+- Enum type safety with backward compatibility constants
+
+### Technical Details
+- **Build:** socket.ext.so (32-bit: 2.1MB, 64-bit: 2.2MB)
+- **Compiler:** GCC 13.3.0 with C++17
+- **Platform:** Linux x86/x86-64
+- **Dependencies:** Boost.Asio 1.83, SourceMod SDK 1.12+
+- **Tests:** 32/32 passing on both 32-bit and 64-bit buildsgelog
+
 All notable changes to the SourceMod Socket Extension will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),

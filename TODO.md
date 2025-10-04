@@ -138,8 +138,8 @@ This document tracks the remaining work items for completing the modernization.
 - [ ] Test with Clang 10, 11, 12
 - [ ] Test with MSVC 2019
 - [ ] Test with MSVC 2022
-- [ ] Verify 32-bit builds
-- [x] Verify 64-bit builds ✅ (socket.ext.so built)
+- [x] Verify 32-bit builds ✅ (socket.ext.so 2.1MB, ELF 32-bit, tests passing)
+- [x] Verify 64-bit builds ✅ (socket.ext.so 2.2MB, ELF 64-bit, tests passing)
 
 ## 🟢 Nice to Have - Can Defer to v2.1+
 

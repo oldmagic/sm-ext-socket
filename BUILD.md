@@ -67,14 +67,19 @@ sudo apt-get install -y build-essential cmake ninja-build git \
 
 ### For 32-bit Builds
 
-SourceMod typically uses 32-bit builds on Linux:
+SourceMod typically uses 32-bit builds on Linux. **Note:** TLS support requires 32-bit OpenSSL libraries.
 
 ```bash
 sudo dpkg --add-architecture i386
 sudo apt-get update
 sudo apt-get install -y gcc-multilib g++-multilib \
-    libboost-all-dev:i386 libssl-dev:i386
+    libboost-system1.83.0:i386 libboost-thread1.83.0:i386 libboost1.83-dev:i386
+
+# Optional: For TLS support (if needed)
+sudo apt-get install -y libssl-dev:i386
 ```
+
+**Important:** The 32-bit Boost development packages don't create symlinks automatically. The CMake build system handles this by finding versioned `.so` files directly.
 
 ### Configure and Build
 
@@ -89,15 +94,19 @@ cmake .. -G Ninja \
     -DSOURCEMOD_DIR=/path/to/sourcemod \
     -DMMSOURCE_DIR=/path/to/metamod-source
 
-# 32-bit build (for SourceMod compatibility)
-cmake .. -G Ninja \
+# 32-bit build (for SourceMod compatibility - RECOMMENDED)
+cmake .. \
     -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_C_FLAGS=-m32 \
-    -DCMAKE_CXX_FLAGS=-m32 \
-    -DENABLE_TLS=ON \
+    -DCMAKE_C_FLAGS="-m32" \
+    -DCMAKE_CXX_FLAGS="-m32" \
+    -DCMAKE_EXE_LINKER_FLAGS="-m32" \
+    -DCMAKE_SHARED_LINKER_FLAGS="-m32" \
+    -DENABLE_TLS=OFF \
     -DENABLE_IPV6=ON \
     -DSOURCEMOD_DIR=/path/to/sourcemod \
     -DMMSOURCE_DIR=/path/to/metamod-source
+
+# Note: TLS is disabled by default for 32-bit builds unless you have libssl-dev:i386 installed
 
 # Build
 cmake --build .

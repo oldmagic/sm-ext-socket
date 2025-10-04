@@ -28,11 +28,41 @@ endif()
 # Find required packages
 find_package(Threads REQUIRED)
 
+# Detect 32-bit build and set library path
+if(CMAKE_CXX_FLAGS MATCHES "-m32" OR CMAKE_C_FLAGS MATCHES "-m32")
+    set(CMAKE_LIBRARY_ARCHITECTURE "i386-linux-gnu")
+    set(CMAKE_PREFIX_PATH "/usr/lib/i386-linux-gnu/cmake;${CMAKE_PREFIX_PATH}")
+    message(STATUS "Configuring for 32-bit build")
+endif()
+
 # Asio (header-only standalone or Boost.Asio)
 # Try standalone Asio first, fall back to Boost.Asio
 find_path(ASIO_INCLUDE_DIR asio.hpp)
 if(NOT ASIO_INCLUDE_DIR)
-    find_package(Boost 1.70 REQUIRED COMPONENTS system thread)
+    # For Boost.Asio, find libraries manually for better 32-bit support
+    find_package(Boost 1.70 REQUIRED)
+    if(Boost_FOUND)
+        # Find the actual library files (with version suffix for 32-bit builds)
+        find_library(Boost_SYSTEM_LIBRARY 
+            NAMES boost_system boost_system.so.1.83.0 
+            PATHS /usr/lib/i386-linux-gnu /usr/lib 
+            NO_DEFAULT_PATH)
+        find_library(Boost_THREAD_LIBRARY 
+            NAMES boost_thread boost_thread.so.1.83.0 
+            PATHS /usr/lib/i386-linux-gnu /usr/lib 
+            NO_DEFAULT_PATH)
+        
+        if(Boost_SYSTEM_LIBRARY AND Boost_THREAD_LIBRARY)
+            set(Boost_LIBRARIES ${Boost_SYSTEM_LIBRARY} ${Boost_THREAD_LIBRARY})
+            message(STATUS "Found Boost libraries: ${Boost_LIBRARIES}")
+        else()
+            # Fallback: use versioned .so files directly
+            set(Boost_SYSTEM_LIBRARY "/usr/lib/i386-linux-gnu/libboost_system.so.1.83.0")
+            set(Boost_THREAD_LIBRARY "/usr/lib/i386-linux-gnu/libboost_thread.so.1.83.0")
+            set(Boost_LIBRARIES ${Boost_SYSTEM_LIBRARY} ${Boost_THREAD_LIBRARY})
+            message(STATUS "Using versioned Boost libraries: ${Boost_LIBRARIES}")
+        endif()
+    endif()
     set(USE_BOOST_ASIO ON)
     message(STATUS "Using Boost.Asio")
 else()
@@ -117,7 +147,7 @@ target_include_directories(socket PRIVATE
 
 if(USE_BOOST_ASIO)
     target_include_directories(socket PRIVATE ${Boost_INCLUDE_DIRS})
-    target_link_libraries(socket PRIVATE Boost::system Boost::thread)
+    target_link_libraries(socket PRIVATE ${Boost_LIBRARIES})
     target_compile_definitions(socket PRIVATE USE_BOOST_ASIO)
 else()
     target_include_directories(socket PRIVATE ${ASIO_INCLUDE_DIR})
