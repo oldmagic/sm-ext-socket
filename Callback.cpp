@@ -1,208 +1,189 @@
 #include "Callback.h"
-
-#include <assert.h>
-#include <string>
-#include <boost/asio.hpp>
-
-#include "Define.h"
-#include "Extension.h"
+#include "CallbackHandler.h"
 #include "Socket.h"
 #include "SocketHandler.h"
 
-using namespace boost::asio::ip;
+using asio::ip::tcp;
+using asio::ip::udp;
 
-Callback::Callback(CallbackEvent callbackEvent,
-				   const void* socket) : callbackEvent(callbackEvent) {
-	assert(callbackEvent == CallbackEvent_Connect || callbackEvent == CallbackEvent_Disconnect || callbackEvent == CallbackEvent_SendQueueEmpty);
+extern SocketHandler socketHandler;
 
-	socketWrapper = socketHandler.GetSocketWrapper(socket);
+// ========================================================================
+// Constructors
+// ========================================================================
+
+Callback::Callback(CallbackEvent callbackEvent, const void* socket)
+    : callbackEvent_(callbackEvent), socketWrapper_(socketHandler.GetSocketWrapper(socket)) {
 }
 
-Callback::Callback(CallbackEvent callbackEvent,
-				   const void* socket,
-				   const char* data,
-				   size_t dataLength) : callbackEvent(callbackEvent) {
-	assert(callbackEvent == CallbackEvent_Receive);
-
-	socketWrapper = socketHandler.GetSocketWrapper(socket);
-	additionalData[0] = new std::string(data, dataLength);
+Callback::Callback(CallbackEvent callbackEvent, const void* socket, const char* data, size_t dataLength)
+    : callbackEvent_(callbackEvent), socketWrapper_(socketHandler.GetSocketWrapper(socket)) {
+    callbackData_ = ReceiveData{std::string(data, dataLength)};
 }
 
-Callback::Callback(CallbackEvent callbackEvent,
-				   const void* socket,
-				   const void* newSocket,
-	   			   const tcp::endpoint& remoteEndPoint) : callbackEvent(callbackEvent) {
-	assert(callbackEvent == CallbackEvent_Incoming);
-
-	socketWrapper = socketHandler.GetSocketWrapper(socket);
-	additionalData[0] = socketHandler.GetSocketWrapper(newSocket);
-	additionalData[1] = new tcp::endpoint(remoteEndPoint);
+Callback::Callback(CallbackEvent callbackEvent, const void* socket, const void* newSocket,
+                   const asio::ip::tcp::endpoint& remoteEndPoint)
+    : callbackEvent_(callbackEvent), socketWrapper_(socketHandler.GetSocketWrapper(socket)) {
+    callbackData_ = IncomingData{newSocket, remoteEndPoint};
 }
 
-Callback::Callback(CallbackEvent callbackEvent,
-				   const void* socket,
-				   SM_ErrorType errorType,
-				   int errorNumber) : callbackEvent(callbackEvent) {
-	assert(callbackEvent == CallbackEvent_Error);
-
-	socketWrapper = socketHandler.GetSocketWrapper(socket);
-	additionalData[0] = new SM_ErrorType(errorType);
-	additionalData[1] = new int(errorNumber);
+Callback::Callback(CallbackEvent callbackEvent, const void* socket, SM_ErrorType errorType, int errorNumber)
+    : callbackEvent_(callbackEvent), socketWrapper_(socketHandler.GetSocketWrapper(socket)) {
+    callbackData_ = ErrorData{errorType, errorNumber};
 }
 
-Callback::~Callback() {
-	if (callbackEvent == CallbackEvent_Receive) {
-		delete (std::string*) additionalData[0];
-	} else if (callbackEvent == CallbackEvent_Incoming) {
-		delete (tcp::endpoint*) additionalData[1];
-	} else if (callbackEvent == CallbackEvent_Error) {
-		delete (SM_ErrorType*) additionalData[0];
-		delete (int*) additionalData[1];
-	}
+// ========================================================================
+// IsExecutable
+// ========================================================================
+
+bool Callback::IsExecutable() const {
+    if (!socketWrapper_) return false;
+
+    switch (callbackEvent_) {
+        case CallbackEvent::Connect:
+            return socketWrapper_->socketType == SM_SocketType::Tcp &&
+                   static_cast<Socket<tcp>*>(socketWrapper_->socket)->connectCallback != nullptr;
+        case CallbackEvent::Disconnect:
+            return socketWrapper_->socketType == SM_SocketType::Tcp &&
+                   static_cast<Socket<tcp>*>(socketWrapper_->socket)->disconnectCallback != nullptr;
+        case CallbackEvent::Incoming:
+            return socketWrapper_->socketType == SM_SocketType::Tcp &&
+                   static_cast<Socket<tcp>*>(socketWrapper_->socket)->incomingCallback != nullptr;
+        case CallbackEvent::Receive:
+            return (socketWrapper_->socketType == SM_SocketType::Tcp &&
+                    static_cast<Socket<tcp>*>(socketWrapper_->socket)->receiveCallback != nullptr) ||
+                   (socketWrapper_->socketType == SM_SocketType::Udp &&
+                    static_cast<Socket<udp>*>(socketWrapper_->socket)->receiveCallback != nullptr);
+        case CallbackEvent::SendQueueEmpty:
+            return (socketWrapper_->socketType == SM_SocketType::Tcp &&
+                    static_cast<Socket<tcp>*>(socketWrapper_->socket)->sendqueueEmptyCallback != nullptr) ||
+                   (socketWrapper_->socketType == SM_SocketType::Udp &&
+                    static_cast<Socket<udp>*>(socketWrapper_->socket)->sendqueueEmptyCallback != nullptr);
+        case CallbackEvent::Error:
+            return (socketWrapper_->socketType == SM_SocketType::Tcp &&
+                    static_cast<Socket<tcp>*>(socketWrapper_->socket)->errorCallback != nullptr) ||
+                   (socketWrapper_->socketType == SM_SocketType::Udp &&
+                    static_cast<Socket<udp>*>(socketWrapper_->socket)->errorCallback != nullptr);
+        default:
+            return false;
+    }
 }
 
-bool Callback::IsExecutable() {
-	if (!socketWrapper) return false;
+// ========================================================================
+// IsValid
+// ========================================================================
 
-	switch (socketWrapper->socketType) {
-		case SM_SocketType_Tcp: {
-			Socket<tcp>* socket = (Socket<tcp>*) socketWrapper->socket;
-
-			switch (callbackEvent) {
-				case CallbackEvent_Connect:
-					return (socket->connectCallback != NULL);
-				case CallbackEvent_Disconnect:
-					return (socket->disconnectCallback != NULL);
-				case CallbackEvent_Incoming:
-					return (socket->incomingCallback != NULL);
-				case CallbackEvent_Receive:
-					return (socket->receiveCallback != NULL);
-				case CallbackEvent_SendQueueEmpty:
-					return (socket->sendqueueEmptyCallback != NULL);
-				case CallbackEvent_Error:
-					return (socket->errorCallback != NULL);
-				default:
-					return false;
-			}
-			break;
-		}
-		case SM_SocketType_Udp: {
-			Socket<udp>* socket = (Socket<udp>*) socketWrapper->socket;
-
-			switch (callbackEvent) {
-				case CallbackEvent_Connect:
-					return (socket->connectCallback != NULL);
-				case CallbackEvent_Disconnect:
-					return (socket->disconnectCallback != NULL);
-				case CallbackEvent_Incoming:
-					return (socket->incomingCallback != NULL);
-				case CallbackEvent_Receive:
-					return (socket->receiveCallback != NULL);
-				case CallbackEvent_SendQueueEmpty:
-					return (socket->sendqueueEmptyCallback != NULL);
-				case CallbackEvent_Error:
-					return (socket->errorCallback != NULL);
-				default:
-					return false;
-			}
-			break;
-		}
-	}
-
-	return false;
+bool Callback::IsValid() const {
+    return socketWrapper_ != nullptr;
 }
 
-bool Callback::IsValid() {
-	if (!socketWrapper) return false;
-	if (callbackEvent == CallbackEvent_Incoming && (!additionalData[0] || !additionalData[1])) return false;
-
-	return true;
-}
+// ========================================================================
+// Execute
+// ========================================================================
 
 void Callback::Execute() {
-	switch (socketWrapper->socketType) {
-		case SM_SocketType_Tcp: {
-			ExecuteHelper<tcp>();
-			break;
-		}
-		case SM_SocketType_Udp: {
-			ExecuteHelper<udp>();
-			break;
-		}
-	}
+    if (!socketWrapper_) return;
+
+    switch (socketWrapper_->socketType) {
+        case SM_SocketType::Tcp:
+            ExecuteHelper<tcp>();
+            break;
+        case SM_SocketType::Udp:
+            ExecuteHelper<udp>();
+            break;
+    }
 }
 
-template<class SocketType>
+// ========================================================================
+// ExecuteHelper
+// ========================================================================
+
+template <class SocketType>
 void Callback::ExecuteHelper() {
-	if (!IsValid()) return;
+    auto* socket = static_cast<Socket<SocketType>*>(socketWrapper_->socket);
 
-	Socket<SocketType>* socket = (Socket<SocketType>*) socketWrapper->socket;
+    switch (callbackEvent_) {
+        case CallbackEvent::Connect: {
+            if (socket->connectCallback) {
+                socket->connectCallback->PushCell(socket->smHandle);
+                socket->connectCallback->PushCell(socket->smCallbackArg);
+                socket->connectCallback->Execute(nullptr);
+            }
+            break;
+        }
 
-	switch (callbackEvent) {
-		case CallbackEvent_Connect:
-			if (!socket->connectCallback) return;
+        case CallbackEvent::Disconnect: {
+            if (socket->disconnectCallback) {
+                socket->disconnectCallback->PushCell(socket->smHandle);
+                socket->disconnectCallback->PushCell(socket->smCallbackArg);
+                socket->disconnectCallback->Execute(nullptr);
+            }
+            break;
+        }
 
-			socket->connectCallback->PushCell(socket->smHandle);
-			socket->connectCallback->PushCell(socket->smCallbackArg);
-			socket->connectCallback->Execute(NULL);
+        case CallbackEvent::Incoming: {
+            if (socket->incomingCallback) {
+                auto* incomingData = std::get_if<IncomingData>(&callbackData_);
+                if (!incomingData) break;
 
-			return;
-		case CallbackEvent_Disconnect:
-			if (!socket->disconnectCallback) return;
+                auto* newSocketWrapper = socketHandler.GetSocketWrapper(incomingData->newSocket);
+                if (!newSocketWrapper) break;
 
-			socket->disconnectCallback->PushCell(socket->smHandle);
-			socket->disconnectCallback->PushCell(socket->smCallbackArg);
-			socket->disconnectCallback->Execute(NULL);
+                auto* newSocket = static_cast<Socket<tcp>*>(newSocketWrapper->socket);
 
-			return;
-		case CallbackEvent_Incoming: {
-			if (!socket->incomingCallback) return;
+                socket->incomingCallback->PushCell(socket->smHandle);
+                socket->incomingCallback->PushCell(newSocket->smHandle);
+                socket->incomingCallback->PushString(incomingData->remoteEndpoint.address().to_string().c_str());
+                socket->incomingCallback->PushCell(incomingData->remoteEndpoint.port());
+                socket->incomingCallback->PushCell(socket->smCallbackArg);
+                socket->incomingCallback->Execute(nullptr);
+            }
+            break;
+        }
 
-			Socket<SocketType>* socket2 = (Socket<SocketType>*) ((SocketWrapper*)additionalData[0])->socket;
-			socket2->smHandle = handlesys->CreateHandle(extension.socketHandleType, socketHandler.GetSocketWrapper(socket2), socket->incomingCallback->GetParentContext()->GetIdentity(), myself->GetIdentity(), NULL);
+        case CallbackEvent::Receive: {
+            if (socket->receiveCallback) {
+                auto* receiveData = std::get_if<ReceiveData>(&callbackData_);
+                if (!receiveData) break;
 
-			socket->incomingCallback->PushCell(socket->smHandle);
-			socket->incomingCallback->PushCell(socket2->smHandle);
-			socket->incomingCallback->PushString(((typename SocketType::endpoint*)additionalData[1])->address().to_string().c_str());
-			socket->incomingCallback->PushCell(((typename SocketType::endpoint*)additionalData[1])->port());
-			socket->incomingCallback->PushCell(socket->smCallbackArg);
-			socket->incomingCallback->Execute(NULL);
+                socket->receiveCallback->PushCell(socket->smHandle);
+                socket->receiveCallback->PushStringEx(
+                    const_cast<char*>(receiveData->data.data()),
+                    receiveData->data.size(),
+                    SM_PARAM_STRING_COPY | SM_PARAM_STRING_BINARY,
+                    0);
+                socket->receiveCallback->PushCell(receiveData->data.size());
+                socket->receiveCallback->PushCell(socket->smCallbackArg);
+                socket->receiveCallback->Execute(nullptr);
+            }
+            break;
+        }
 
-			return;
-		}
-		case CallbackEvent_Receive: {
-			if (!socket->receiveCallback) return;
+        case CallbackEvent::SendQueueEmpty: {
+            if (socket->sendqueueEmptyCallback) {
+                socket->sendqueueEmptyCallback->PushCell(socket->smHandle);
+                socket->sendqueueEmptyCallback->PushCell(socket->smCallbackArg);
+                socket->sendqueueEmptyCallback->Execute(nullptr);
+            }
+            break;
+        }
 
-			size_t strLen = ((std::string*) additionalData[0])->length();
-			char* tmp = new char[strLen+1];
-			memcpy(tmp, ((std::string*) additionalData[0])->c_str(), strLen+1);
+        case CallbackEvent::Error: {
+            if (socket->errorCallback) {
+                auto* errorData = std::get_if<ErrorData>(&callbackData_);
+                if (!errorData) break;
 
-			socket->receiveCallback->PushCell(socket->smHandle);
-			socket->receiveCallback->PushStringEx(tmp, strLen+1, SM_PARAM_STRING_COPY|SM_PARAM_STRING_BINARY, 0);
-			socket->receiveCallback->PushCell(strLen);
-			socket->receiveCallback->PushCell(socket->smCallbackArg);
-			socket->receiveCallback->Execute(NULL);
-
-			delete[] tmp;
-			return;
-		}
-		case CallbackEvent_SendQueueEmpty:
-			if (!socket->sendqueueEmptyCallback) return;
-
-			socket->sendqueueEmptyCallback->PushCell(socket->smHandle);
-			socket->sendqueueEmptyCallback->PushCell(socket->smCallbackArg);
-			socket->sendqueueEmptyCallback->Execute(NULL);
-
-			return;
-		case CallbackEvent_Error:
-			if (!socket->errorCallback) return;
-
-			socket->errorCallback->PushCell(socket->smHandle);
-			socket->errorCallback->PushCell(*(SM_ErrorType*) additionalData[0]);
-			socket->errorCallback->PushCell(*(int*) additionalData[1]);
-			socket->errorCallback->PushCell(socket->smCallbackArg);
-			socket->errorCallback->Execute(NULL);
-
-			return;
-	}
+                socket->errorCallback->PushCell(socket->smHandle);
+                socket->errorCallback->PushCell(static_cast<int>(errorData->errorType));
+                socket->errorCallback->PushCell(errorData->errorNumber);
+                socket->errorCallback->PushCell(socket->smCallbackArg);
+                socket->errorCallback->Execute(nullptr);
+            }
+            break;
+        }
+    }
 }
+
+// Template instantiations
+template void Callback::ExecuteHelper<tcp>();
+template void Callback::ExecuteHelper<udp>();

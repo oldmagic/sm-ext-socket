@@ -137,35 +137,35 @@ public:
 private:
     // Async operation handlers (using lambdas instead of boost::bind)
     void ReceiveHandler(std::unique_ptr<char[]> buf, size_t bufferSize, size_t bytes,
-                        const std::error_code& ec, std::shared_lock<std::shared_mutex> lock);
+                        const boost::system::error_code& ec, std::shared_lock<std::shared_mutex> lock);
 
     void BindPostResolveHandler(std::unique_ptr<typename SocketType::resolver> resolver,
                                 typename SocketType::resolver::iterator endpointIterator,
-                                const std::error_code& ec, std::shared_lock<std::shared_mutex> lock);
+                                const boost::system::error_code& ec, std::shared_lock<std::shared_mutex> lock);
 
     void ConnectPostResolveHandler(std::unique_ptr<typename SocketType::resolver> resolver,
                                    typename SocketType::resolver::iterator endpointIterator,
-                                   const std::error_code& ec, std::shared_lock<std::shared_mutex> lock);
+                                   const boost::system::error_code& ec, std::shared_lock<std::shared_mutex> lock);
 
     void ConnectPostConnectHandler(std::unique_ptr<typename SocketType::resolver> resolver,
                                    typename SocketType::resolver::iterator endpointIterator,
-                                   const std::error_code& ec, std::shared_lock<std::shared_mutex> lock);
+                                   const boost::system::error_code& ec, std::shared_lock<std::shared_mutex> lock);
 
-    void ListenIncomingHandler(std::unique_ptr<asio::ip::tcp::socket> newAsioSocket, const std::error_code& ec,
+    void ListenIncomingHandler(std::unique_ptr<asio::ip::tcp::socket> newAsioSocket, const boost::system::error_code& ec,
                                std::shared_lock<std::shared_mutex> lock);
 
-    void SendPostSendHandler(std::unique_ptr<char[]> buf, size_t bytes, const std::error_code& err,
+    void SendPostSendHandler(std::unique_ptr<char[]> buf, size_t bytes, const boost::system::error_code& err,
                              std::shared_lock<std::shared_mutex> lock);
 
     void SendToPostResolveHandler(std::unique_ptr<typename SocketType::resolver> resolver,
                                   typename SocketType::resolver::iterator endpointIterator,
-                                  std::unique_ptr<char[]> buf, size_t bufLen, const std::error_code& ec,
+                                  std::unique_ptr<char[]> buf, size_t bufLen, const boost::system::error_code& ec,
                                   std::shared_lock<std::shared_mutex> lock);
 
     void SendToPostSendHandler(std::unique_ptr<typename SocketType::resolver> resolver,
                                typename SocketType::resolver::iterator endpointIterator,
                                std::unique_ptr<char[]> buf, size_t bufLen, size_t bytesTransferred,
-                               const std::error_code& ec, std::shared_lock<std::shared_mutex> lock);
+                               const boost::system::error_code& ec, std::shared_lock<std::shared_mutex> lock);
 
     void InitializeSocket();
 

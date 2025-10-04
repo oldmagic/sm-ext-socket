@@ -60,7 +60,7 @@ cell_t SocketIsConnected(IPluginContext *pContext, const cell_t *params) {
 	SocketWrapper* sw = extension.GetSocketWrapperByHandle(static_cast<Handle_t>(params[1]));
 	if (sw == NULL) return pContext->ThrowNativeError("Invalid handle: %i", params[1]);
 
-	switch (sw->socketType) {
+	switch (static_cast<int>(sw->socketType)) {
 		case SM_SocketType_Tcp:
 			return ((Socket<tcp>*) sw->socket)->IsOpen();
 		case SM_SocketType_Udp:
@@ -80,7 +80,7 @@ cell_t SocketCreate(IPluginContext *pContext, const cell_t *params) {
 
 	switch (params[1]) {
 		case SM_SocketType_Tcp: {
-			Socket<tcp>* socket = socketHandler.CreateSocket<tcp>(SM_SocketType_Tcp);
+			Socket<tcp>* socket = socketHandler.CreateSocket<tcp>(static_cast<SM_SocketType>(SM_SocketType_Tcp));
 			SocketWrapper* sw = socketHandler.GetSocketWrapper(socket);
 
 			handle = handlesys->CreateHandle(extension.socketHandleType, sw, pContext->GetIdentity(), myself->GetIdentity(), NULL);
@@ -91,7 +91,7 @@ cell_t SocketCreate(IPluginContext *pContext, const cell_t *params) {
 			break;
 		}
 		case SM_SocketType_Udp: {
-			Socket<udp>* socket = socketHandler.CreateSocket<udp>(SM_SocketType_Udp);
+			Socket<udp>* socket = socketHandler.CreateSocket<udp>(static_cast<SM_SocketType>(SM_SocketType_Udp));
 			SocketWrapper* sw = socketHandler.GetSocketWrapper(socket);
 
 			handle = handlesys->CreateHandle(extension.socketHandleType, sw, pContext->GetIdentity(), myself->GetIdentity(), NULL);
@@ -115,7 +115,7 @@ cell_t SocketBind(IPluginContext *pContext, const cell_t *params) {
 	char *hostname = NULL;
 	pContext->LocalToString(params[2], &hostname);
 
-	switch (sw->socketType) {
+	switch (static_cast<int>(sw->socketType)) {
 		case SM_SocketType_Tcp:
 			return ((Socket<tcp>*) sw->socket)->Bind(hostname, params[3], false);
 		case SM_SocketType_Udp:
@@ -138,7 +138,7 @@ cell_t SocketConnect(IPluginContext *pContext, const cell_t *params) {
 	char *hostname = NULL;
 	pContext->LocalToString(params[5], &hostname);
 
-	switch (sw->socketType) {
+	switch (static_cast<int>(sw->socketType)) {
 		case SM_SocketType_Tcp: {
 			Socket<tcp>* socket = (Socket<tcp>*) sw->socket;
 			if (socket->IsOpen()) return pContext->ThrowNativeError("Socket is already connected");
@@ -169,7 +169,7 @@ cell_t SocketDisconnect(IPluginContext *pContext, const cell_t *params) {
 	SocketWrapper* sw = extension.GetSocketWrapperByHandle(static_cast<Handle_t>(params[1]));
 	if (sw == NULL) return pContext->ThrowNativeError("Invalid handle: %i", params[1]);
 
-	switch (sw->socketType) {
+	switch (static_cast<int>(sw->socketType)) {
 		case SM_SocketType_Tcp: {
 			Socket<tcp>* socket = (Socket<tcp>*) sw->socket;
 			if (!socket->IsOpen()) return pContext->ThrowNativeError("Socket is not connected/listening");
@@ -189,10 +189,10 @@ cell_t SocketDisconnect(IPluginContext *pContext, const cell_t *params) {
 cell_t SocketListen(IPluginContext *pContext, const cell_t *params) {
 	SocketWrapper* sw = extension.GetSocketWrapperByHandle(static_cast<Handle_t>(params[1]));
 	if (sw == NULL) return pContext->ThrowNativeError("Invalid handle: %i", params[1]);
-	if (sw->socketType != SM_SocketType_Tcp) return pContext->ThrowNativeError("The socket must use the TCP/SOCK_STREAM protocol");
+	if (static_cast<int>(sw->socketType) != SM_SocketType_Tcp) return pContext->ThrowNativeError("The socket must use the TCP/SOCK_STREAM protocol");
 	if (!pContext->GetFunctionById(params[2])) return pContext->ThrowNativeError("Invalid incoming callback specified");
 
-	switch (sw->socketType) {
+	switch (static_cast<int>(sw->socketType)) {
 		case SM_SocketType_Tcp: {
 			Socket<tcp>* socket = (Socket<tcp>*) sw->socket;
 			if (socket->IsOpen()) return pContext->ThrowNativeError("Socket is already open");
@@ -226,7 +226,7 @@ cell_t SocketSend(IPluginContext *pContext, const cell_t *params) {
 		data.assign(dataTmp, params[3]);
 	}
 
-	switch (sw->socketType) {
+	switch (static_cast<int>(sw->socketType)) {
 		case SM_SocketType_Tcp: {
 			Socket<tcp>* socket = (Socket<tcp>*) sw->socket;
 			if (!socket->IsOpen()) return pContext->ThrowNativeError("Can't send, socket is not connected");
@@ -246,7 +246,7 @@ cell_t SocketSend(IPluginContext *pContext, const cell_t *params) {
 cell_t SocketSendTo(IPluginContext *pContext, const cell_t *params) {
 	SocketWrapper* sw = extension.GetSocketWrapperByHandle(static_cast<Handle_t>(params[1]));
 	if (sw == NULL) return pContext->ThrowNativeError("Invalid handle: %i", params[1]);
-	if (sw->socketType == SM_SocketType_Tcp) return pContext->ThrowNativeError("This native doesn't support connection orientated protocols");
+	if (static_cast<int>(sw->socketType) == SM_SocketType_Tcp) return pContext->ThrowNativeError("This native doesn't support connection orientated protocols");
 
 	char* dataTmp = NULL;
 	pContext->LocalToString(params[2], &dataTmp);
@@ -262,7 +262,7 @@ cell_t SocketSendTo(IPluginContext *pContext, const cell_t *params) {
 	char* hostname = NULL;
 	pContext->LocalToString(params[4], &hostname);
 
-	switch (sw->socketType) {
+	switch (static_cast<int>(sw->socketType)) {
 		case SM_SocketType_Udp: {
 			Socket<udp>* socket = (Socket<udp>*) sw->socket;
 			//if (!socket->IsOpen()) return pContext->ThrowNativeError("Can't send, socket is not connected");
@@ -282,7 +282,7 @@ cell_t SocketSetOption(IPluginContext *pContext, const cell_t *params) {
 		params[2] != SM_SO_DebugMode) {
 		if (sw == NULL) return pContext->ThrowNativeError("Invalid handle: %i", params[1]);
 
-		switch (sw->socketType) {
+		switch (static_cast<int>(sw->socketType)) {
 			case SM_SocketType_Tcp: {
 				return ((Socket<tcp>*) sw->socket)->SetOption((SM_SocketOption) params[2], params[3]);
 			}
@@ -303,7 +303,7 @@ cell_t SocketSetReceiveCallback(IPluginContext *pContext, const cell_t *params) 
 	SocketWrapper* sw = extension.GetSocketWrapperByHandle(static_cast<Handle_t>(params[1]));
 	if (sw == NULL) return pContext->ThrowNativeError("Invalid handle: %i", params[1]);
 
-	switch (sw->socketType) {
+	switch (static_cast<int>(sw->socketType)) {
 		case SM_SocketType_Tcp:
 			((Socket<tcp>*) sw->socket)->receiveCallback = pContext->GetFunctionById((params[2]));
 			break;
@@ -324,7 +324,7 @@ cell_t SocketSetSendqueueEmptyCallback(IPluginContext *pContext, const cell_t *p
 
 	bool forceSendqueueEmptyCallback = false;
 
-	switch (sw->socketType) {
+	switch (static_cast<int>(sw->socketType)) {
 		case SM_SocketType_Tcp:
 			((Socket<tcp>*) sw->socket)->sendqueueEmptyCallback = pContext->GetFunctionById((params[2]));
 			if (!((Socket<tcp>*) sw->socket)->sendQueueLength) forceSendqueueEmptyCallback = true;
@@ -338,7 +338,7 @@ cell_t SocketSetSendqueueEmptyCallback(IPluginContext *pContext, const cell_t *p
 	}
 
 	if (forceSendqueueEmptyCallback) {
-		callbackHandler.AddCallback(new Callback(CallbackEvent_SendQueueEmpty, sw->socket));
+		callbackHandler.AddCallback(std::make_unique<Callback>(static_cast<CallbackEvent>(CallbackEvent_SendQueueEmpty), sw->socket));
 	}
 
 	return true;
@@ -349,7 +349,7 @@ cell_t SocketSetDisconnectCallback(IPluginContext *pContext, const cell_t *param
 	SocketWrapper* sw = extension.GetSocketWrapperByHandle(static_cast<Handle_t>(params[1]));
 	if (sw == NULL) return pContext->ThrowNativeError("Invalid handle: %i", params[1]);
 
-	switch (sw->socketType) {
+	switch (static_cast<int>(sw->socketType)) {
 		case SM_SocketType_Tcp:
 			((Socket<tcp>*) sw->socket)->disconnectCallback = pContext->GetFunctionById((params[2]));
 			break;
@@ -368,7 +368,7 @@ cell_t SocketSetErrorCallback(IPluginContext *pContext, const cell_t *params) {
 	SocketWrapper* sw = extension.GetSocketWrapperByHandle(static_cast<Handle_t>(params[1]));
 	if (sw == NULL) return pContext->ThrowNativeError("Invalid handle: %i", params[1]);
 
-	switch (sw->socketType) {
+	switch (static_cast<int>(sw->socketType)) {
 		case SM_SocketType_Tcp:
 			((Socket<tcp>*) sw->socket)->errorCallback = pContext->GetFunctionById((params[2]));
 			break;
@@ -388,7 +388,7 @@ cell_t SocketSetArg(IPluginContext *pContext, const cell_t *params) {
 	SocketWrapper* sw = extension.GetSocketWrapperByHandle(static_cast<Handle_t>(params[1]));
 	if (sw == NULL) return pContext->ThrowNativeError("Invalid handle: %i", params[1]);
 
-	switch (sw->socketType) {
+	switch (static_cast<int>(sw->socketType)) {
 		case SM_SocketType_Tcp:
 			((Socket<tcp>*) sw->socket)->smCallbackArg = params[2];
 			break;

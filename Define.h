@@ -83,6 +83,11 @@ constexpr int SM_ErrorType_LISTEN_ERROR = static_cast<int>(SM_ErrorType::LISTEN_
 constexpr int SM_SocketType_Tcp = static_cast<int>(SM_SocketType::Tcp);
 constexpr int SM_SocketType_Udp = static_cast<int>(SM_SocketType::Udp);
 
+constexpr int SM_SO_ConcatenateCallbacks = static_cast<int>(SM_SocketOption::ConcatenateCallbacks);
+constexpr int SM_SO_ForceFrameLock = static_cast<int>(SM_SocketOption::ForceFrameLock);
+constexpr int SM_SO_CallbacksPerFrame = static_cast<int>(SM_SocketOption::CallbacksPerFrame);
+constexpr int SM_SO_DebugMode = static_cast<int>(SM_SocketOption::DebugMode);
+
 constexpr int CallbackEvent_Connect = static_cast<int>(CallbackEvent::Connect);
 constexpr int CallbackEvent_Disconnect = static_cast<int>(CallbackEvent::Disconnect);
 constexpr int CallbackEvent_Incoming = static_cast<int>(CallbackEvent::Incoming);

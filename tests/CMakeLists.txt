@@ -25,6 +25,8 @@ target_link_libraries(socket_tests PRIVATE
     Threads::Threads
 )
 
+target_compile_definitions(socket_tests PRIVATE USE_BOOST_ASIO)
+
 if(USE_BOOST_ASIO)
     target_link_libraries(socket_tests PRIVATE Boost::system Boost::thread)
     target_include_directories(socket_tests PRIVATE ${Boost_INCLUDE_DIRS})

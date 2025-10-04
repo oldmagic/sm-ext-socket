@@ -63,14 +63,15 @@ endif()
 set(SOURCEMOD_INCLUDE_DIRS
     ${SOURCEMOD_DIR}/public
     ${SOURCEMOD_DIR}/public/extensions
-    ${SOURCEMOD_DIR}/public/sourcepawn
-    ${SOURCEMOD_DIR}/public/sourcepawn/include
-    ${SOURCEMOD_DIR}/public/sourcepawn/vm
+    ${SOURCEMOD_DIR}/public/amtl/amtl
+    ${SOURCEMOD_DIR}/public/amtl
+    ${SOURCEMOD_DIR}/sourcepawn/include
+    ${SOURCEMOD_DIR}/sourcepawn/vm
     ${SOURCEMOD_DIR}/core
     ${SOURCEMOD_DIR}/core/logic
-    ${MMSOURCE_DIR}
-    ${MMSOURCE_DIR}/sourcehook
-    ${MMSOURCE_DIR}/sourcemm
+    ${MMSOURCE_DIR}/public
+    ${MMSOURCE_DIR}/core
+    ${MMSOURCE_DIR}/core/sourcehook
 )
 
 # Source files
@@ -117,6 +118,7 @@ target_include_directories(socket PRIVATE
 if(USE_BOOST_ASIO)
     target_include_directories(socket PRIVATE ${Boost_INCLUDE_DIRS})
     target_link_libraries(socket PRIVATE Boost::system Boost::thread)
+    target_compile_definitions(socket PRIVATE USE_BOOST_ASIO)
 else()
     target_include_directories(socket PRIVATE ${ASIO_INCLUDE_DIR})
     target_compile_definitions(socket PRIVATE ASIO_STANDALONE)
