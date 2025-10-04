@@ -32,36 +32,57 @@ find_package(Threads REQUIRED)
 if(CMAKE_CXX_FLAGS MATCHES "-m32" OR CMAKE_C_FLAGS MATCHES "-m32")
     set(CMAKE_LIBRARY_ARCHITECTURE "i386-linux-gnu")
     set(CMAKE_PREFIX_PATH "/usr/lib/i386-linux-gnu/cmake;${CMAKE_PREFIX_PATH}")
+    set(LIB_ARCH_PATH "/usr/lib/i386-linux-gnu")
     message(STATUS "Configuring for 32-bit build")
+else()
+    set(CMAKE_LIBRARY_ARCHITECTURE "x86_64-linux-gnu")
+    set(LIB_ARCH_PATH "/usr/lib/x86_64-linux-gnu")
+    message(STATUS "Configuring for 64-bit build")
 endif()
 
 # Asio (header-only standalone or Boost.Asio)
 # Try standalone Asio first, fall back to Boost.Asio
 find_path(ASIO_INCLUDE_DIR asio.hpp)
 if(NOT ASIO_INCLUDE_DIR)
-    # For Boost.Asio, find libraries manually for better 32-bit support
-    find_package(Boost 1.70 REQUIRED)
+    # For Boost.Asio, try component-based search first (works better for 64-bit)
+    if(NOT CMAKE_CXX_FLAGS MATCHES "-m32" AND NOT CMAKE_C_FLAGS MATCHES "-m32")
+        find_package(Boost 1.70 COMPONENTS system thread)
+    else()
+        # For 32-bit, just find the base package
+        find_package(Boost 1.70)
+    endif()
+    
     if(Boost_FOUND)
-        # Find the actual library files (with version suffix for 32-bit builds)
-        find_library(Boost_SYSTEM_LIBRARY 
-            NAMES boost_system boost_system.so.1.83.0 
-            PATHS /usr/lib/i386-linux-gnu /usr/lib 
-            NO_DEFAULT_PATH)
-        find_library(Boost_THREAD_LIBRARY 
-            NAMES boost_thread boost_thread.so.1.83.0 
-            PATHS /usr/lib/i386-linux-gnu /usr/lib 
-            NO_DEFAULT_PATH)
-        
+        # Try to use libraries found by find_package
         if(Boost_SYSTEM_LIBRARY AND Boost_THREAD_LIBRARY)
             set(Boost_LIBRARIES ${Boost_SYSTEM_LIBRARY} ${Boost_THREAD_LIBRARY})
-            message(STATUS "Found Boost libraries: ${Boost_LIBRARIES}")
+            message(STATUS "Found Boost libraries via find_package: ${Boost_LIBRARIES}")
         else()
-            # Fallback: use versioned .so files directly
-            set(Boost_SYSTEM_LIBRARY "/usr/lib/i386-linux-gnu/libboost_system.so.1.83.0")
-            set(Boost_THREAD_LIBRARY "/usr/lib/i386-linux-gnu/libboost_thread.so.1.83.0")
-            set(Boost_LIBRARIES ${Boost_SYSTEM_LIBRARY} ${Boost_THREAD_LIBRARY})
-            message(STATUS "Using versioned Boost libraries: ${Boost_LIBRARIES}")
+            # Manual search with correct architecture path
+            message(STATUS "Searching for Boost libraries manually in ${LIB_ARCH_PATH}")
+            find_library(Boost_SYSTEM_LIBRARY 
+                NAMES boost_system libboost_system.so.1.83.0
+                PATHS ${LIB_ARCH_PATH} /usr/lib
+                NO_DEFAULT_PATH)
+            find_library(Boost_THREAD_LIBRARY 
+                NAMES boost_thread libboost_thread.so.1.83.0
+                PATHS ${LIB_ARCH_PATH} /usr/lib
+                NO_DEFAULT_PATH)
+            
+            if(Boost_SYSTEM_LIBRARY AND Boost_THREAD_LIBRARY)
+                set(Boost_LIBRARIES ${Boost_SYSTEM_LIBRARY} ${Boost_THREAD_LIBRARY})
+                message(STATUS "Found Boost libraries manually: ${Boost_LIBRARIES}")
+            else()
+                message(FATAL_ERROR "Could not find Boost libraries for ${CMAKE_LIBRARY_ARCHITECTURE}")
+            endif()
         endif()
+        
+        # Set include directories
+        if(NOT Boost_INCLUDE_DIRS)
+            set(Boost_INCLUDE_DIRS ${Boost_INCLUDE_DIR})
+        endif()
+    else()
+        message(FATAL_ERROR "Boost not found")
     endif()
     set(USE_BOOST_ASIO ON)
     message(STATUS "Using Boost.Asio")
@@ -72,8 +93,16 @@ endif()
 
 # OpenSSL for TLS support
 if(ENABLE_TLS)
+    # For 32-bit builds, help find the correct OpenSSL
+    if(CMAKE_CXX_FLAGS MATCHES "-m32" OR CMAKE_C_FLAGS MATCHES "-m32")
+        set(OPENSSL_ROOT_DIR "${LIB_ARCH_PATH}")
+        set(OPENSSL_CRYPTO_LIBRARY "${LIB_ARCH_PATH}/libcrypto.so.3")
+        set(OPENSSL_SSL_LIBRARY "${LIB_ARCH_PATH}/libssl.so.3")
+    endif()
+    
     find_package(OpenSSL REQUIRED)
     message(STATUS "TLS support enabled")
+    message(STATUS "OpenSSL libraries: ${OPENSSL_SSL_LIBRARY}, ${OPENSSL_CRYPTO_LIBRARY}")
 endif()
 
 # SourceMod SDK paths (can be overridden via command line)
@@ -124,6 +153,12 @@ set(EXTENSION_HEADERS
     sdk/smsdk_ext.h
     sdk/smsdk_config.h
 )
+
+# Add TLS sources if enabled
+if(ENABLE_TLS)
+    list(APPEND EXTENSION_SOURCES SocketTLS.cpp)
+    list(APPEND EXTENSION_HEADERS SocketTLS.h)
+endif()
 
 # Create the extension library
 add_library(socket SHARED ${EXTENSION_SOURCES} ${EXTENSION_HEADERS})

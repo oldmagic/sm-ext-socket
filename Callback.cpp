@@ -3,6 +3,12 @@
 #include "Socket.h"
 #include "SocketHandler.h"
 
+#ifdef ENABLE_TLS
+#include "SocketTLS.h"
+#endif
+
+#include <boost/system/error_code.hpp>
+
 using asio::ip::tcp;
 using asio::ip::udp;
 
@@ -17,8 +23,9 @@ Callback::Callback(CallbackEvent callbackEvent, const void* socket)
 }
 
 Callback::Callback(CallbackEvent callbackEvent, const void* socket, const char* data, size_t dataLength)
-    : callbackEvent_(callbackEvent), socketWrapper_(socketHandler.GetSocketWrapper(socket)) {
-    callbackData_ = ReceiveData{std::string(data, dataLength)};
+    : callbackEvent_(callbackEvent) {
+    socketWrapper_ = socketHandler.GetSocketWrapper(socket);
+    callbackData_ = ReceiveData{std::string(data, dataLength), dataLength};
 }
 
 Callback::Callback(CallbackEvent callbackEvent, const void* socket, const void* newSocket,
@@ -91,6 +98,11 @@ void Callback::Execute() {
         case SM_SocketType::Udp:
             ExecuteHelper<udp>();
             break;
+#ifdef ENABLE_TLS
+        case SM_SocketType::Tls:
+            ExecuteHelperTLS();
+            break;
+#endif
     }
 }
 
@@ -187,3 +199,78 @@ void Callback::ExecuteHelper() {
 // Template instantiations
 template void Callback::ExecuteHelper<tcp>();
 template void Callback::ExecuteHelper<udp>();
+
+#ifdef ENABLE_TLS
+// ========================================================================
+// ExecuteHelperTLS - Special handling for TLS sockets
+// ========================================================================
+
+void Callback::ExecuteHelperTLS() {
+    auto* socket = static_cast<SocketTLS*>(socketWrapper_->socket);
+
+    switch (callbackEvent_) {
+        case CallbackEvent::Connect: {
+            if (socket->connectCallback) {
+                socket->connectCallback->PushCell(socket->smHandle);
+                socket->connectCallback->PushCell(socket->smCallbackArg);
+                socket->connectCallback->Execute(nullptr);
+            }
+            break;
+        }
+
+        case CallbackEvent::Disconnect: {
+            if (socket->disconnectCallback) {
+                socket->disconnectCallback->PushCell(socket->smHandle);
+                socket->disconnectCallback->PushCell(socket->smCallbackArg);
+                socket->disconnectCallback->Execute(nullptr);
+            }
+            break;
+        }
+
+        case CallbackEvent::Receive: {
+            if (socket->receiveCallback) {
+                auto* receiveData = std::get_if<ReceiveData>(&callbackData_);
+                if (!receiveData) break;
+
+                socket->receiveCallback->PushCell(socket->smHandle);
+                socket->receiveCallback->PushStringEx(
+                    const_cast<char*>(receiveData->data.c_str()),
+                    receiveData->dataLength,
+                    SM_PARAM_STRING_COPY | SM_PARAM_STRING_BINARY,
+                    0);
+                socket->receiveCallback->PushCell(receiveData->dataLength);
+                socket->receiveCallback->PushCell(socket->smCallbackArg);
+                socket->receiveCallback->Execute(nullptr);
+            }
+            break;
+        }
+
+        case CallbackEvent::SendQueueEmpty: {
+            if (socket->sendqueueEmptyCallback) {
+                socket->sendqueueEmptyCallback->PushCell(socket->smHandle);
+                socket->sendqueueEmptyCallback->PushCell(socket->smCallbackArg);
+                socket->sendqueueEmptyCallback->Execute(nullptr);
+            }
+            break;
+        }
+
+        case CallbackEvent::Error: {
+            if (socket->errorCallback) {
+                auto* errorData = std::get_if<ErrorData>(&callbackData_);
+                if (!errorData) break;
+
+                socket->errorCallback->PushCell(socket->smHandle);
+                socket->errorCallback->PushCell(static_cast<int>(errorData->errorType));
+                socket->errorCallback->PushCell(errorData->errorNumber);
+                socket->errorCallback->PushCell(socket->smCallbackArg);
+                socket->errorCallback->Execute(nullptr);
+            }
+            break;
+        }
+
+        case CallbackEvent::Incoming:
+            // TLS doesn't support incoming connections (listening)
+            break;
+    }
+}
+#endif // ENABLE_TLS

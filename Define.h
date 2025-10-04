@@ -14,6 +14,9 @@ enum class SM_ErrorType {
     BIND_ERROR,        ///< Bind operation failed
     RECV_ERROR,        ///< Receive operation failed
     LISTEN_ERROR,      ///< Listen operation failed
+    TLS_HANDSHAKE_ERROR, ///< TLS handshake failed
+    TLS_CERT_ERROR,    ///< TLS certificate verification failed
+    TLS_VERSION_ERROR, ///< TLS version not supported
 };
 
 /**
@@ -22,6 +25,7 @@ enum class SM_ErrorType {
 enum class SM_SocketType {
     Tcp = 1,  ///< TCP (connection-oriented)
     Udp,      ///< UDP (connectionless)
+    Tls,      ///< TLS/SSL over TCP (secure)
 };
 
 /**
@@ -45,6 +49,14 @@ enum class SM_SocketOption {
     SocketReceiveTimeout,      ///< SO_RCVTIMEO
     SocketSendLowWatermark,    ///< SO_SNDLOWAT
     SocketSendTimeout,         ///< SO_SNDTIMEO
+    // TLS/SSL options
+    TLSVerifyPeer,             ///< Verify peer certificate (bool)
+    TLSVerifyHost,             ///< Verify hostname matches certificate (bool)
+    TLSMinVersion,             ///< Minimum TLS version (TLSv1.2 = 12, TLSv1.3 = 13)
+    TLSMaxVersion,             ///< Maximum TLS version (TLSv1.2 = 12, TLSv1.3 = 13)
+    TLSCertificateFile,        ///< Path to certificate file
+    TLSPrivateKeyFile,         ///< Path to private key file
+    TLSCAFile,                 ///< Path to CA certificate file
     // Extension options
     DebugMode                  ///< Enable debug logging
 };
@@ -79,9 +91,13 @@ constexpr int SM_ErrorType_SEND_ERROR = static_cast<int>(SM_ErrorType::SEND_ERRO
 constexpr int SM_ErrorType_BIND_ERROR = static_cast<int>(SM_ErrorType::BIND_ERROR);
 constexpr int SM_ErrorType_RECV_ERROR = static_cast<int>(SM_ErrorType::RECV_ERROR);
 constexpr int SM_ErrorType_LISTEN_ERROR = static_cast<int>(SM_ErrorType::LISTEN_ERROR);
+constexpr int SM_ErrorType_TLS_HANDSHAKE_ERROR = static_cast<int>(SM_ErrorType::TLS_HANDSHAKE_ERROR);
+constexpr int SM_ErrorType_TLS_CERT_ERROR = static_cast<int>(SM_ErrorType::TLS_CERT_ERROR);
+constexpr int SM_ErrorType_TLS_VERSION_ERROR = static_cast<int>(SM_ErrorType::TLS_VERSION_ERROR);
 
 constexpr int SM_SocketType_Tcp = static_cast<int>(SM_SocketType::Tcp);
 constexpr int SM_SocketType_Udp = static_cast<int>(SM_SocketType::Udp);
+constexpr int SM_SocketType_Tls = static_cast<int>(SM_SocketType::Tls);
 
 constexpr int SM_SO_ConcatenateCallbacks = static_cast<int>(SM_SocketOption::ConcatenateCallbacks);
 constexpr int SM_SO_ForceFrameLock = static_cast<int>(SM_SocketOption::ForceFrameLock);

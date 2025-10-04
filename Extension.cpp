@@ -7,6 +7,10 @@
 #include "Callback.h"
 #include "Socket.h"
 
+#ifdef ENABLE_TLS
+#include "SocketTLS.h"
+#endif
+
 using namespace boost::asio::ip;
 
 Extension extension;
@@ -65,6 +69,10 @@ cell_t SocketIsConnected(IPluginContext *pContext, const cell_t *params) {
 			return ((Socket<tcp>*) sw->socket)->IsOpen();
 		case SM_SocketType_Udp:
 			return ((Socket<udp>*) sw->socket)->IsOpen();
+#ifdef ENABLE_TLS
+		case SM_SocketType_Tls:
+			return ((SocketTLS*) sw->socket)->IsOpen();
+#endif
 		default:
 			return false;
 	}
@@ -73,7 +81,14 @@ cell_t SocketIsConnected(IPluginContext *pContext, const cell_t *params) {
 
 // native Handle:SocketCreate(SocketType:protocol=SOCKET_TCP, SocketErrorCB:efunc);
 cell_t SocketCreate(IPluginContext *pContext, const cell_t *params) {
-	if (params[1] != SM_SocketType_Tcp && params[1] != SM_SocketType_Udp) return pContext->ThrowNativeError("Invalid protocol specified");
+	if (params[1] != SM_SocketType_Tcp && params[1] != SM_SocketType_Udp
+#ifdef ENABLE_TLS
+		&& params[1] != SM_SocketType_Tls
+#endif
+	) {
+		return pContext->ThrowNativeError("Invalid protocol specified");
+	}
+	
 	if (!pContext->GetFunctionById(params[2])) return pContext->ThrowNativeError("Invalid error callback specified");
 
 	cell_t handle = -1;
@@ -101,6 +116,19 @@ cell_t SocketCreate(IPluginContext *pContext, const cell_t *params) {
 
 			break;
 		}
+#ifdef ENABLE_TLS
+		case SM_SocketType_Tls: {
+			SocketTLS* socket = socketHandler.CreateTLSSocket();
+			SocketWrapper* sw = socketHandler.GetSocketWrapper(socket);
+
+			handle = handlesys->CreateHandle(extension.socketHandleType, sw, pContext->GetIdentity(), myself->GetIdentity(), NULL);
+
+			socket->smHandle = handle;
+			socket->errorCallback = pContext->GetFunctionById(params[2]);
+
+			break;
+		}
+#endif
 	}
 
 	return handle;
@@ -420,6 +448,76 @@ cell_t SocketGetHostName(IPluginContext *pContext, const cell_t *params) {
 	}
 }
 
+#ifdef ENABLE_TLS
+// native SocketConnectTLS(Handle:socket, SocketConnectCB:cfunc, SocketReceiveCB:rfunc, SocketDisconnectCB:dfunc, String:hostname[], port);
+cell_t SocketConnectTLS(IPluginContext *pContext, const cell_t *params) {
+	SocketWrapper* sw = extension.GetSocketWrapperByHandle(static_cast<Handle_t>(params[1]));
+	if (sw == NULL) return pContext->ThrowNativeError("Invalid handle: %i", params[1]);
+	if (static_cast<int>(sw->socketType) != SM_SocketType_Tls) return pContext->ThrowNativeError("Socket must be of type TLS");
+	if (!pContext->GetFunctionById(params[2])) return pContext->ThrowNativeError("Invalid connect callback specified");
+	if (!pContext->GetFunctionById(params[3])) return pContext->ThrowNativeError("Invalid receive callback specified");
+	if (!pContext->GetFunctionById(params[4])) return pContext->ThrowNativeError("Invalid disconnect callback specified");
+	if (params[6] < 0 || params[6] > 65535) return pContext->ThrowNativeError("Invalid port specified");
+
+	char *hostname = NULL;
+	pContext->LocalToString(params[5], &hostname);
+
+	SocketTLS* socket = (SocketTLS*) sw->socket;
+	if (socket->IsOpen()) return pContext->ThrowNativeError("Socket is already connected");
+
+	socket->connectCallback = pContext->GetFunctionById(params[2]);
+	socket->receiveCallback = pContext->GetFunctionById(params[3]);
+	socket->disconnectCallback = pContext->GetFunctionById(params[4]);
+
+	return socket->Connect(hostname, params[6]);
+}
+
+// native SocketSendTLS(Handle:socket, String:data[], size=-1);
+cell_t SocketSendTLS(IPluginContext *pContext, const cell_t *params) {
+	SocketWrapper* sw = extension.GetSocketWrapperByHandle(static_cast<Handle_t>(params[1]));
+	if (sw == NULL) return pContext->ThrowNativeError("Invalid handle: %i", params[1]);
+	if (static_cast<int>(sw->socketType) != SM_SocketType_Tls) return pContext->ThrowNativeError("Socket must be of type TLS");
+
+	char* dataTmp = NULL;
+	pContext->LocalToString(params[2], &dataTmp);
+
+	std::string data;
+	if (params[3] == -1) {
+		data.assign(dataTmp);
+	} else {
+		data.assign(dataTmp, params[3]);
+	}
+
+	SocketTLS* socket = (SocketTLS*) sw->socket;
+	if (!socket->IsOpen()) return pContext->ThrowNativeError("Can't send, socket is not connected");
+	
+	return socket->Send(data);
+}
+
+// native SocketSetTLSOption(Handle:socket, TLSOption:option, value);
+cell_t SocketSetTLSOption(IPluginContext *pContext, const cell_t *params) {
+	SocketWrapper* sw = extension.GetSocketWrapperByHandle(static_cast<Handle_t>(params[1]));
+	if (sw == NULL) return pContext->ThrowNativeError("Invalid handle: %i", params[1]);
+	if (static_cast<int>(sw->socketType) != SM_SocketType_Tls) return pContext->ThrowNativeError("Socket must be of type TLS");
+
+	SocketTLS* socket = (SocketTLS*) sw->socket;
+	return socket->SetOption(static_cast<SM_SocketOption>(params[2]), params[3]);
+}
+
+// native SocketSetTLSOptionString(Handle:socket, TLSOption:option, const String:value[]);
+cell_t SocketSetTLSOptionString(IPluginContext *pContext, const cell_t *params) {
+	SocketWrapper* sw = extension.GetSocketWrapperByHandle(static_cast<Handle_t>(params[1]));
+	if (sw == NULL) return pContext->ThrowNativeError("Invalid handle: %i", params[1]);
+	if (static_cast<int>(sw->socketType) != SM_SocketType_Tls) return pContext->ThrowNativeError("Socket must be of type TLS");
+
+	char* value = NULL;
+	pContext->LocalToString(params[3], &value);
+
+	SocketTLS* socket = (SocketTLS*) sw->socket;
+	return socket->SetTLSOption(static_cast<SM_SocketOption>(params[2]), value);
+}
+#endif // ENABLE_TLS
+
 const sp_nativeinfo_t smsock_natives[] = {
 	{"SocketIsConnected",		SocketIsConnected},
 
@@ -440,6 +538,13 @@ const sp_nativeinfo_t smsock_natives[] = {
 	{"SocketSetArg",			SocketSetArg},
 	
 	{"SocketGetHostName",		SocketGetHostName},
+
+#ifdef ENABLE_TLS
+	{"SocketConnectTLS",		SocketConnectTLS},
+	{"SocketSendTLS",			SocketSendTLS},
+	{"SocketSetTLSOption",		SocketSetTLSOption},
+	{"SocketSetTLSOptionString", SocketSetTLSOptionString},
+#endif
 
 	{NULL,						NULL},
 };

@@ -8,7 +8,7 @@
 enum SocketType {
 	SOCKET_TCP = 1,
 	SOCKET_UDP,
-	SOCKET_RAW
+	SOCKET_TLS
 }
 
 enum {
@@ -18,7 +18,10 @@ enum {
 	SEND_ERROR,
 	BIND_ERROR,
 	RECV_ERROR,
-	LISTEN_ERROR
+	LISTEN_ERROR,
+	TLS_HANDSHAKE_ERROR,
+	TLS_CERT_ERROR,
+	TLS_VERSION_ERROR
 }
 
 
@@ -185,7 +188,59 @@ enum SocketOption {
  * @param bool	whether to enable debugging or not
  * @return bool true on success
  */
- 	DebugMode
+ 	DebugMode,
+/**
+ * Enable/disable peer certificate verification for TLS sockets.
+ *
+ * @param bool	whether to verify peer certificate
+ * @return bool true on success
+ */
+	TLSVerifyPeer,
+/**
+ * Enable/disable hostname verification for TLS sockets.
+ *
+ * @param bool	whether to verify hostname matches certificate
+ * @return bool true on success
+ */
+	TLSVerifyHost,
+/**
+ * Set minimum TLS version for TLS sockets.
+ *
+ * @param int	12 for TLS 1.2, 13 for TLS 1.3
+ * @return bool true on success
+ */
+	TLSMinVersion,
+/**
+ * Set maximum TLS version for TLS sockets.
+ *
+ * @param int	12 for TLS 1.2, 13 for TLS 1.3
+ * @return bool true on success
+ */
+	TLSMaxVersion,
+/**
+ * Set certificate file path for TLS client authentication.
+ * Use SocketSetTLSOptionString() to set this.
+ *
+ * @param String	path to certificate file
+ * @return bool		true on success
+ */
+	TLSCertificateFile,
+/**
+ * Set private key file path for TLS client authentication.
+ * Use SocketSetTLSOptionString() to set this.
+ *
+ * @param String	path to private key file
+ * @return bool		true on success
+ */
+	TLSPrivateKeyFile,
+/**
+ * Set CA certificate file path for TLS verification.
+ * Use SocketSetTLSOptionString() to set this.
+ *
+ * @param String	path to CA certificate file
+ * @return bool		true on success
+ */
+	TLSCAFile
 }
 
 
@@ -449,6 +504,90 @@ native void SocketSetArg(Handle socket, any arg);
  * @return			1 on success
  */
 native int SocketGetHostName(char[] dest, int destLen);
+
+
+/*************************************************************************************************/
+/**************************************** TLS/SSL functions **************************************/
+/*************************************************************************************************/
+
+
+/**
+ * Connect a TLS/SSL socket to a remote host with encryption.
+ * 
+ * @note This is a secure version of SocketConnect() that performs TLS handshake
+ * @note The socket must be created with SOCKET_TLS type
+ * @note Certificate verification is enabled by default
+ * 
+ * @param socket	The TLS socket handle
+ * @param cfunc		The connect callback (called after TLS handshake completes)
+ * @param rfunc		The receive callback
+ * @param dfunc		The disconnect callback
+ * @param hostname	The remote hostname (used for certificate verification)
+ * @param port		The remote port
+ * @return			1 on success, 0 on failure
+ * 
+ * Example:
+ *   Handle socket = SocketCreate(SOCKET_TLS, OnSocketError);
+ *   SocketSetTLSOption(socket, TLSVerifyPeer, 1);
+ *   SocketConnectTLS(socket, OnConnected, OnReceive, OnDisconnect, "api.example.com", 443);
+ */
+native int SocketConnectTLS(Handle socket, SocketConnectCB cfunc, SocketReceiveCB rfunc, 
+                            SocketDisconnectCB dfunc, const char[] hostname, int port);
+
+/**
+ * Send data through a TLS/SSL encrypted socket.
+ * 
+ * @note Data is automatically encrypted before transmission
+ * @note The socket must be created with SOCKET_TLS type and connected
+ * 
+ * @param socket	The TLS socket handle
+ * @param data		The data to send (will be encrypted)
+ * @param size		The size of data to send, or -1 for null-terminated string
+ * @return			1 on success, 0 on failure
+ */
+native int SocketSendTLS(Handle socket, const char[] data, int size=-1);
+
+/**
+ * Set a TLS/SSL socket option (integer value).
+ * 
+ * @note Use this for boolean and integer TLS options
+ * @note For file path options, use SocketSetTLSOptionString()
+ * 
+ * @param socket	The TLS socket handle
+ * @param option	The TLS option to set (TLSVerifyPeer, TLSVerifyHost, TLSMinVersion, TLSMaxVersion)
+ * @param value		The option value
+ * @return			1 on success, 0 on failure
+ * 
+ * Example:
+ *   // Enable peer verification
+ *   SocketSetTLSOption(socket, TLSVerifyPeer, 1);
+ *   // Set minimum TLS version to 1.2
+ *   SocketSetTLSOption(socket, TLSMinVersion, 12);
+ *   // Set maximum TLS version to 1.3
+ *   SocketSetTLSOption(socket, TLSMaxVersion, 13);
+ */
+native int SocketSetTLSOption(Handle socket, SocketOption option, int value);
+
+/**
+ * Set a TLS/SSL socket option (string value for file paths).
+ * 
+ * @note Use this for file path options (certificate, private key, CA file)
+ * @note File paths must be accessible by the game server
+ * 
+ * @param socket	The TLS socket handle
+ * @param option	The TLS option to set (TLSCertificateFile, TLSPrivateKeyFile, TLSCAFile)
+ * @param value		The file path
+ * @return			1 on success, 0 on failure
+ * 
+ * Example:
+ *   // Set custom CA certificate for verification
+ *   SocketSetTLSOptionString(socket, TLSCAFile, "configs/ca-bundle.crt");
+ *   // Set client certificate for mutual TLS
+ *   SocketSetTLSOptionString(socket, TLSCertificateFile, "configs/client.crt");
+ *   SocketSetTLSOptionString(socket, TLSPrivateKeyFile, "configs/client.key");
+ */
+native int SocketSetTLSOptionString(Handle socket, SocketOption option, const char[] value);
+
 
 /**
  * _________________Do not edit below this line!_______________________

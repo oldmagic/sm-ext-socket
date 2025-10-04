@@ -13,6 +13,14 @@ namespace asio = boost::asio;
 #include <asio.hpp>
 #endif
 
+#ifdef ENABLE_TLS
+#ifdef USE_BOOST_ASIO
+#include <boost/asio/ssl.hpp>
+#else
+#include <asio/ssl.hpp>
+#endif
+#endif
+
 #include "Socket.h"
 
 /**
@@ -79,6 +87,20 @@ public:
     template <class SocketType>
     Socket<SocketType>* CreateSocket(SM_SocketType st);
 
+#ifdef ENABLE_TLS
+    /**
+     * @brief Create a new TLS socket
+     * @return Pointer to newly created TLS socket
+     */
+    class SocketTLS* CreateTLSSocket();
+
+    /**
+     * @brief Get or create the default SSL context
+     * @return Shared pointer to SSL context
+     */
+    std::shared_ptr<asio::ssl::context> GetSSLContext();
+#endif
+
     /**
      * @brief Destroy a socket and clean up its resources
      * @param sw Socket wrapper to destroy
@@ -106,6 +128,11 @@ private:
 
     std::unique_ptr<std::thread> ioServiceProcessingThread_;
     bool ioServiceProcessingThreadInitialized_{false};
+
+#ifdef ENABLE_TLS
+    std::shared_ptr<asio::ssl::context> sslContext_;
+    std::mutex sslContextMutex_;
+#endif
 
     void RunIoService();
 };

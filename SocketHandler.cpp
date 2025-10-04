@@ -1,6 +1,10 @@
 #include "SocketHandler.h"
 #include "Socket.h"
 
+#ifdef ENABLE_TLS
+#include "SocketTLS.h"
+#endif
+
 using asio::ip::tcp;
 using asio::ip::udp;
 
@@ -19,6 +23,11 @@ SocketWrapper::~SocketWrapper() {
             case SM_SocketType::Udp:
                 delete static_cast<Socket<udp>*>(socket);
                 break;
+#ifdef ENABLE_TLS
+            case SM_SocketType::Tls:
+                delete static_cast<SocketTLS*>(socket);
+                break;
+#endif
         }
         socket = nullptr;
     }
@@ -81,6 +90,50 @@ Socket<SocketType>* SocketHandler::CreateSocket(SM_SocketType st) {
 // Template instantiations
 template Socket<tcp>* SocketHandler::CreateSocket<tcp>(SM_SocketType st);
 template Socket<udp>* SocketHandler::CreateSocket<udp>(SM_SocketType st);
+
+#ifdef ENABLE_TLS
+// ========================================================================
+// CreateTLSSocket
+// ========================================================================
+
+SocketTLS* SocketHandler::CreateTLSSocket() {
+    auto sslContext = GetSSLContext();
+    auto* socket = new SocketTLS(sslContext);
+
+    std::lock_guard<std::mutex> lock(socketListMutex_);
+    socketList_.push_back(std::make_unique<SocketWrapper>(socket, SM_SocketType::Tls));
+
+    return socket;
+}
+
+// ========================================================================
+// GetSSLContext
+// ========================================================================
+
+std::shared_ptr<asio::ssl::context> SocketHandler::GetSSLContext() {
+    std::lock_guard<std::mutex> lock(sslContextMutex_);
+
+    if (!sslContext_) {
+        // Create a new SSL context with TLS 1.2+ support
+        sslContext_ = std::make_shared<asio::ssl::context>(asio::ssl::context::tlsv12_client);
+
+        // Set default verification mode
+        sslContext_->set_default_verify_paths();
+        sslContext_->set_verify_mode(asio::ssl::verify_peer);
+
+        // Set options to disable older protocols
+        sslContext_->set_options(
+            asio::ssl::context::default_workarounds |
+            asio::ssl::context::no_sslv2 |
+            asio::ssl::context::no_sslv3 |
+            asio::ssl::context::no_tlsv1 |
+            asio::ssl::context::no_tlsv1_1 |
+            asio::ssl::context::single_dh_use);
+    }
+
+    return sslContext_;
+}
+#endif
 
 // ========================================================================
 // DestroySocket

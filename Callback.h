@@ -99,6 +99,10 @@ private:
     template <class SocketType>
     void ExecuteHelper();
 
+#ifdef ENABLE_TLS
+    void ExecuteHelperTLS();
+#endif
+
     // Callback event type
     const CallbackEvent callbackEvent_;
 
@@ -109,6 +113,7 @@ private:
     // Using std::variant instead of void* array for type safety
     struct ReceiveData {
         std::string data;
+        size_t dataLength;
     };
 
     struct IncomingData {
