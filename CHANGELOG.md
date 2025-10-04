@@ -79,6 +79,7 @@ with significant new features and improvements.
 - Improved error handling with `std::error_code`
 - Better const-correctness throughout
 - Enhanced thread-safety guarantees
+- **Ported to modern SourceMod SDK** - Removed dependency on deprecated `sp_vm_types.h` and `sp_vm_api.h`, now using SourcePawn 1.10+ APIs from `IPluginSys.h` and related modern headers
 
 ### Deprecated
 
