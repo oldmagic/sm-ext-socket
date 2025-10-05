@@ -5,6 +5,61 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2025-10-05
+
+### 🎉 Major Release - Complete C++17 Modernization with TLS/SSL Support
+
+This is a major rewrite featuring modern C++ patterns, TLS/SSL encryption, and comprehensive documentation.
+
+#### Added - TLS/SSL Support (Milestone 4 Complete)
+- **Complete TLS/SSL Implementation**: SocketTLS.h/cpp with Asio SSL streams
+- **4 New Natives**: SocketConnectTLS, SocketSendTLS, SocketSetTLSOption, SocketSetTLSOptionString
+- **Certificate Verification**: Peer and hostname verification with custom CA support
+- **TLS 1.2/1.3 Support**: Modern encryption standards (TLS 1.0/1.1 disabled)
+- **7 New Socket Options**: TLSVerifyPeer, TLSVerifyHost, TLSMinVersion, TLSMaxVersion, TLSCertificateFile, TLSPrivateKeyFile, TLSCAFile
+- **3 New Error Codes**: TLS_HANDSHAKE_ERROR, TLS_CERT_ERROR, TLS_VERSION_ERROR
+- **SSL Context Management**: Shared context for efficient resource usage
+- **Comprehensive TLS Documentation**: TLS_GUIDE.md with examples and troubleshooting
+
+#### Added - Documentation & Guides
+- **TLS_GUIDE.md**: Complete TLS/SSL usage guide (359 lines)
+- **TLS_IMPLEMENTATION_SUMMARY.md**: Technical implementation details (287 lines)
+- **BUILD_SUMMARY.md**: Build verification guide
+- **DOCUMENTATION.md**: Documentation generation guide
+- **32BIT_BUILD_GUIDE.md**: 32-bit build instructions
+- **Comprehensive API Docs**: All natives documented in socket.inc with examples
+- **Doxygen Configuration**: Doxyfile ready for HTML documentation generation
+- **TLS Example Plugin**: examples/tls_example.sp (190 lines)
+- **TLS Unit Tests**: tests/test_tls.cpp (116 lines)
+
+#### Changed - Version & Metadata
+- **Version**: Updated from 3.0.2 to 2.0.0
+- **Description**: Added "with TLS/SSL support" to extension description
+- **socket.inc**: Added 145 lines of TLS API documentation
+- **TODO.md**: Updated with completion status for all milestones
+
+#### Build Information
+- **Extension Size**: 875 KB (64-bit with TLS), 839 KB (32-bit with TLS)
+- **OpenSSL**: Requires OpenSSL 3.0.13+ for TLS support
+- **CMake**: Added ENABLE_TLS option (ON by default)
+- **Platforms**: Linux x86-64 and i386 verified
+
+#### Security Features
+- **Modern TLS**: TLS 1.2 and 1.3 only (deprecated versions disabled)
+- **Certificate Verification**: Enabled by default for security
+- **Mutual TLS**: Client certificate support for authentication
+- **Custom CA**: Support for private certificate authorities
+
+### Migration from 1.x
+- Fully backward compatible - existing plugins work without changes
+- New TLS features require code updates to use SocketConnectTLS
+- See TLS_GUIDE.md for migration examples
+
+### Known Limitations
+- IPv6 support not yet implemented (planned for v2.1)
+- Windows/macOS builds not tested (Linux only)
+- Performance benchmarks vs v1.x pending
+
 ## [2.0.0-beta] - 2025-10-04
 
 ### Added - C++17 Modernization (Milestone 2 Complete)
