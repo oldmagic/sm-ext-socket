@@ -18,12 +18,23 @@ endif()
 add_executable(socket_tests
     test_main.cpp
     test_socket_basic.cpp
+    test_socket_integration.cpp
 )
 
 target_link_libraries(socket_tests PRIVATE
     Catch2::Catch2WithMain
     Threads::Threads
 )
+
+# Integration tests option
+option(ENABLE_INTEGRATION_TESTS "Enable integration tests requiring network access" OFF)
+
+if(ENABLE_INTEGRATION_TESTS)
+    message(STATUS "Integration tests enabled (requires network access)")
+    target_compile_definitions(socket_tests PRIVATE ENABLE_INTEGRATION_TESTS)
+else()
+    message(STATUS "Integration tests disabled (use -DENABLE_INTEGRATION_TESTS=ON to enable)")
+endif()
 
 target_compile_definitions(socket_tests PRIVATE USE_BOOST_ASIO)
 
