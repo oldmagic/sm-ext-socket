@@ -57,6 +57,10 @@ enum class SM_SocketOption {
     TLSCertificateFile,        ///< Path to certificate file
     TLSPrivateKeyFile,         ///< Path to private key file
     TLSCAFile,                 ///< Path to CA certificate file
+    // IPv6 options
+    IPv6Only,                  ///< Enable IPv6-only mode (disables IPv4-mapped addresses)
+    PreferIPv6,                ///< Prefer IPv6 addresses when available
+    PreferIPv4,                ///< Prefer IPv4 addresses when available
     // Extension options
     DebugMode                  ///< Enable debug logging
 };

@@ -168,6 +168,16 @@ private:
                                const boost::system::error_code& ec, std::shared_lock<std::shared_mutex> lock);
 
     void InitializeSocket();
+    
+    /**
+     * @brief Select preferred endpoint from resolver results based on IPv6 preferences
+     * @param begin Iterator to first resolved endpoint
+     * @param end Iterator past last resolved endpoint
+     * @return Iterator to preferred endpoint, or end if none suitable
+     */
+    typename SocketType::resolver::iterator SelectPreferredEndpoint(
+        typename SocketType::resolver::iterator begin,
+        typename SocketType::resolver::iterator end);
 
     // Member variables using modern C++ idioms
     SM_SocketType socketType_;
@@ -183,6 +193,11 @@ private:
     std::unique_ptr<std::mutex> tcpAcceptorMutex_;
 
     mutable std::shared_mutex handlerMutex_;
+    
+    // IPv6 configuration
+    bool ipv6Only_{false};        ///< IPv6-only mode (no IPv4-mapped addresses)
+    bool preferIPv6_{false};      ///< Prefer IPv6 when both available
+    bool preferIPv4_{false};      ///< Prefer IPv4 when both available
 };
 
 #endif // INC_SEXT_SOCKET_H

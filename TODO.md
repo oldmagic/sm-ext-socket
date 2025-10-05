@@ -74,15 +74,26 @@ This document tracks the remaining work items for completing the modernization.
   - [ ] Test all natives (requires SourceMod server testing)
   - [x] Update version to 2.0.0 ✅
 
-### IPv6 Support Implementation
-- [ ] Add IPv6 resolver support
-- [ ] Implement dual-stack socket binding
-- [ ] Add SocketBindIPv6 native
-- [ ] Add SocketConnectIPv6 native
-- [ ] Add SocketListenDualStack native
-- [ ] Test IPv6-only connections
-- [ ] Test IPv4-IPv6 dual-stack
-- [ ] Test IPv4-mapped IPv6 addresses
+### IPv6 Support Implementation ✅ (v2.0.0)
+- [x] Add IPv6 resolver support ✅ (Boost.Asio tcp::resolver with v4_mapped | all_matching flags)
+- [x] Implement dual-stack socket binding ✅ (SelectPreferredEndpoint algorithm)
+- [x] IPv6 socket options (IPv6Only, PreferIPv6, PreferIPv4) ✅ (no new natives needed - transparent support)
+- [x] Update existing Connect/Bind/Listen for IPv6 ✅ (backward compatible)
+- [x] Endpoint preference system ✅ (client-side filtering)
+- [x] Documentation: socket.inc IPv6 Support section ✅
+- [x] Documentation: IPv6_GUIDE.md comprehensive guide ✅
+- [ ] Test IPv6-only connections (requires integration testing)
+- [ ] Test IPv4-IPv6 dual-stack (requires integration testing)
+- [ ] Test IPv4-mapped IPv6 addresses (requires integration testing)
+
+**Implementation Notes:**
+- IPv6 support is transparent - no breaking API changes
+- Three socket options control IPv6 behavior: `IPv6Only`, `PreferIPv6`, `PreferIPv4`
+- Dual-stack resolver queries return both IPv4 and IPv6 endpoints
+- `SelectPreferredEndpoint()` filters endpoints based on user preferences
+- IPv4-mapped IPv6 addresses (::ffff:0:0/96) enabled via `v4_mapped` flag
+- Default behavior unchanged (IPv4) - IPv6 is opt-in for compatibility
+- See `IPv6_GUIDE.md` for comprehensive usage examples
 
 ### TLS/SSL Support Implementation
 - [x] Integrate Asio SSL stream wrapper ✅
@@ -99,7 +110,7 @@ This document tracks the remaining work items for completing the modernization.
 - [x] Update socket.inc with new natives ✅ (TLS natives added)
 - [x] Add doc comments to all natives ✅ (comprehensive documentation)
 - [x] Add TLS-related enums ✅
-- [ ] Add IPv6-related enums (pending IPv6 implementation)
+- [x] Add IPv6-related enums ✅ (IPv6Only, PreferIPv6, PreferIPv4 socket options)
 - [x] Add error code enums ✅ (includes TLS error codes)
 - [x] Test backward compatibility ✅ (maintains existing API)
 

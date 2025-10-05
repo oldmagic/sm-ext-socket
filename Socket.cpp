@@ -173,7 +173,10 @@ bool Socket<tcp>::Connect(std::string_view hostname, uint16_t port, bool async) 
 
     try {
         auto resolver = std::make_unique<tcp::resolver>(*socketHandler.ioService);
-        tcp::resolver::query query(std::string(hostname), std::to_string(port));
+        // Use protocol-agnostic query to resolve both IPv4 and IPv6
+        tcp::resolver::query query(std::string(hostname), std::to_string(port),
+                                   tcp::resolver::query::flags(tcp::resolver::query::v4_mapped | 
+                                                               tcp::resolver::query::all_matching));
 
         if (async) {
             std::shared_lock<std::shared_mutex> handlerLock(handlerMutex_);
@@ -192,11 +195,19 @@ bool Socket<tcp>::Connect(std::string_view hostname, uint16_t port, bool async) 
                     CallbackEvent::Error, this, SM_ErrorType::NO_HOST, ec.value()));
                 return false;
             }
+            
+            // Select preferred endpoint based on IPv6 settings
+            tcp::resolver::iterator selectedEndpoint = SelectPreferredEndpoint(endpointIterator, tcp::resolver::iterator());
+            if (selectedEndpoint == tcp::resolver::iterator()) {
+                callbackHandler.AddCallback(std::make_unique<Callback>(
+                    CallbackEvent::Error, this, SM_ErrorType::NO_HOST, 0));
+                return false;
+            }
 
             std::lock_guard<std::mutex> socketLock(socketMutex_);
             InitializeSocket();
 
-            socket_->connect(*endpointIterator, ec);
+            socket_->connect(*selectedEndpoint, ec);
             if (ec) {
                 callbackHandler.AddCallback(std::make_unique<Callback>(
                     CallbackEvent::Error, this, SM_ErrorType::CONNECT_ERROR, ec.value()));
@@ -277,14 +288,22 @@ void Socket<SocketType>::ConnectPostResolveHandler(std::unique_ptr<typename Sock
             CallbackEvent::Error, this, SM_ErrorType::NO_HOST, ec.value()));
         return;
     }
+    
+    // Select preferred endpoint based on IPv6 settings
+    typename SocketType::resolver::iterator selectedEndpoint = SelectPreferredEndpoint(endpointIterator, typename SocketType::resolver::iterator());
+    if (selectedEndpoint == typename SocketType::resolver::iterator()) {
+        callbackHandler.AddCallback(std::make_unique<Callback>(
+            CallbackEvent::Error, this, SM_ErrorType::NO_HOST, 0));
+        return;
+    }
 
     std::lock_guard<std::mutex> socketLock(socketMutex_);
 
     try {
         InitializeSocket();
 
-        socket_->async_connect(*endpointIterator,
-                              [this, resolver = std::move(resolver), endpointIterator, 
+        socket_->async_connect(*selectedEndpoint,
+                              [this, resolver = std::move(resolver), endpointIterator = selectedEndpoint, 
                                handlerLock = std::move(handlerLock)](const boost::system::error_code& ec) mutable {
             ConnectPostConnectHandler(std::move(resolver), endpointIterator, ec, std::move(handlerLock));
         });
@@ -769,6 +788,23 @@ void Socket<SocketType>::SendToPostSendHandler(std::unique_ptr<typename SocketTy
 template <class SocketType>
 bool Socket<SocketType>::SetOption(SM_SocketOption so, int value, bool lock) {
     try {
+        // Handle IPv6 options that don't require an open socket
+        switch (so) {
+            case SM_SocketOption::IPv6Only:
+                ipv6Only_ = (value != 0);
+                return true;
+            case SM_SocketOption::PreferIPv6:
+                preferIPv6_ = (value != 0);
+                if (preferIPv6_) preferIPv4_ = false;  // Mutually exclusive
+                return true;
+            case SM_SocketOption::PreferIPv4:
+                preferIPv4_ = (value != 0);
+                if (preferIPv4_) preferIPv6_ = false;  // Mutually exclusive
+                return true;
+            default:
+                break;  // Continue to socket options
+        }
+        
         std::unique_ptr<std::lock_guard<std::mutex>> socketLock;
         if (lock) {
             socketLock = std::make_unique<std::lock_guard<std::mutex>>(socketMutex_);
@@ -830,14 +866,77 @@ bool Socket<SocketType>::SetOption(SM_SocketOption so, int value, bool lock) {
     }
 }
 
-// InitializeSocket - stub
+// InitializeSocket - supports IPv4 and IPv6
 template <class SocketType>
 void Socket<SocketType>::InitializeSocket() {
     if (socket_ && !socket_->is_open()) {
         boost::system::error_code ec;
-        socket_->open(SocketType::v4(), ec);
+        // Choose protocol based on IPv6 preferences
+        if (preferIPv6_ || ipv6Only_) {
+            socket_->open(SocketType::v6(), ec);
+        } else {
+            socket_->open(SocketType::v4(), ec);
+        }
     }
 }
+
+// SelectPreferredEndpoint - chooses endpoint based on IPv6 preferences
+template <class SocketType>
+typename SocketType::resolver::iterator Socket<SocketType>::SelectPreferredEndpoint(
+    typename SocketType::resolver::iterator begin,
+    typename SocketType::resolver::iterator end) {
+    
+    if (begin == end) {
+        return end;  // No endpoints available
+    }
+    
+    // If no preferences set, return first endpoint
+    if (!ipv6Only_ && !preferIPv6_ && !preferIPv4_) {
+        return begin;
+    }
+    
+    typename SocketType::resolver::iterator ipv6Endpoint = end;
+    typename SocketType::resolver::iterator ipv4Endpoint = end;
+    
+    // Scan through endpoints to find IPv4 and IPv6 options
+    for (auto it = begin; it != end; ++it) {
+        if (it->endpoint().address().is_v6()) {
+            if (ipv6Endpoint == end) {
+                ipv6Endpoint = it;
+            }
+        } else if (it->endpoint().address().is_v4()) {
+            if (ipv4Endpoint == end) {
+                ipv4Endpoint = it;
+            }
+        }
+        
+        // Early exit if we found both types
+        if (ipv6Endpoint != end && ipv4Endpoint != end) {
+            break;
+        }
+    }
+    
+    // Apply preferences
+    if (ipv6Only_) {
+        return (ipv6Endpoint != end) ? ipv6Endpoint : end;
+    }
+    
+    if (preferIPv6_ && ipv6Endpoint != end) {
+        return ipv6Endpoint;
+    }
+    
+    if (preferIPv4_ && ipv4Endpoint != end) {
+        return ipv4Endpoint;
+    }
+    
+    // Default: return first available
+    return (ipv6Endpoint != end) ? ipv6Endpoint : 
+           (ipv4Endpoint != end) ? ipv4Endpoint : begin;
+}
+
+// Explicit template instantiations
+template typename tcp::resolver::iterator Socket<tcp>::SelectPreferredEndpoint(tcp::resolver::iterator, tcp::resolver::iterator);
+template typename udp::resolver::iterator Socket<udp>::SelectPreferredEndpoint(udp::resolver::iterator, udp::resolver::iterator);
 
 // Template Instantiations
 template class Socket<tcp>;

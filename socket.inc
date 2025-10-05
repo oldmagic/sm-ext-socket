@@ -240,7 +240,35 @@ enum SocketOption {
  * @param String	path to CA certificate file
  * @return bool		true on success
  */
-	TLSCAFile
+	TLSCAFile,
+/**
+ * Enable IPv6-only mode, disabling IPv4-mapped IPv6 addresses.
+ * When enabled, the socket will only accept pure IPv6 connections.
+ *
+ * @param bool	whether to enable IPv6-only mode
+ * @return bool true on success
+ */
+	IPv6Only,
+/**
+ * Prefer IPv6 addresses when both IPv4 and IPv6 are available.
+ * If set, the socket will attempt IPv6 connection first.
+ *
+ * @note This option is mutually exclusive with PreferIPv4
+ *
+ * @param bool	whether to prefer IPv6
+ * @return bool true on success
+ */
+	PreferIPv6,
+/**
+ * Prefer IPv4 addresses when both IPv4 and IPv6 are available.
+ * If set, the socket will attempt IPv4 connection first.
+ *
+ * @note This option is mutually exclusive with PreferIPv6
+ *
+ * @param bool	whether to prefer IPv4
+ * @return bool true on success
+ */
+	PreferIPv4
 }
 
 
@@ -589,6 +617,58 @@ native int SocketSetTLSOption(Handle socket, SocketOption option, int value);
 native int SocketSetTLSOptionString(Handle socket, SocketOption option, const char[] value);
 
 
+/*************************************************************************************************/
+/**************************************** IPv6 Support *******************************************/
+/*************************************************************************************************/
+
+
+/**
+ * IPv6 Support Overview
+ * 
+ * The socket extension supports both IPv4 and IPv6 addresses transparently.
+ * By default, when you connect to a hostname, the extension will resolve both
+ * IPv4 and IPv6 addresses and use the first available one.
+ * 
+ * IPv6 Configuration Options:
+ * - IPv6Only: Only use pure IPv6 addresses (no IPv4-mapped IPv6)
+ * - PreferIPv6: Prefer IPv6 when both IPv4 and IPv6 are available
+ * - PreferIPv4: Prefer IPv4 when both IPv4 and IPv6 are available
+ * 
+ * Examples:
+ * 
+ * // Default behavior - uses first available (IPv4 or IPv6)
+ * Handle socket = SocketCreate(SOCKET_TCP, OnError);
+ * SocketConnect(socket, OnConnect, OnReceive, OnDisconnect, "example.com", 80);
+ * 
+ * // Force IPv6-only mode
+ * Handle socket = SocketCreate(SOCKET_TCP, OnError);
+ * SocketSetOption(socket, IPv6Only, 1);
+ * SocketConnect(socket, OnConnect, OnReceive, OnDisconnect, "ipv6.example.com", 80);
+ * 
+ * // Prefer IPv6 but fall back to IPv4
+ * Handle socket = SocketCreate(SOCKET_TCP, OnError);
+ * SocketSetOption(socket, PreferIPv6, 1);
+ * SocketConnect(socket, OnConnect, OnReceive, OnDisconnect, "dualstack.example.com", 80);
+ * 
+ * // Connect to IPv6 literal address
+ * Handle socket = SocketCreate(SOCKET_TCP, OnError);
+ * SocketConnect(socket, OnConnect, OnReceive, OnDisconnect, "2001:db8::1", 80);
+ * 
+ * // TLS with IPv6
+ * Handle socket = SocketCreate(SOCKET_TLS, OnError);
+ * SocketSetOption(socket, PreferIPv6, 1);
+ * SocketSetTLSOption(socket, TLSVerifyPeer, 1);
+ * SocketConnectTLS(socket, OnConnect, OnReceive, OnDisconnect, "ipv6.example.com", 443);
+ * 
+ * Notes:
+ * - IPv6 addresses in URLs should be enclosed in brackets: [2001:db8::1]:80
+ * - IPv6 works with all socket types: TCP, UDP, and TLS
+ * - Binding to "::" will bind to all IPv6 interfaces
+ * - Binding to "0.0.0.0" will bind to all IPv4 interfaces
+ * - The extension handles IPv4-mapped IPv6 addresses automatically
+ */
+
+
 /**
  * _________________Do not edit below this line!_______________________
  */
@@ -607,3 +687,4 @@ public Extension __ext_smsock =
 	required = 0,
 #endif
 };
+
